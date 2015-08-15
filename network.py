@@ -158,6 +158,7 @@ RELAY = 0  # set to 1 to receive all txs
 DEFAULT_PORT = 8333
 
 SOCKET_BUFSIZE = 4096
+PING_FREQUENCY = 10
 
 def makeMessage(magic, command, payload):
     checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[0:4]
@@ -189,6 +190,28 @@ def getVersionMsg(serverIP):
 # L - unsigned long (integer 4)
 
     return makeMessage(magic, 'version', payload)
+
+def getVerackMsg():
+    payload = "" #struct.pack('<LQQ26s26sQsL', "verack")
+# L - unsigned long (integer 4)
+# Q - unsigned long long (integer 8)
+# Q - unsigned long long (integer 8)
+# s - char[26]
+# s - char[26]
+# Q - unsigned long long (integer 8)
+# s - char[]
+# L - unsigned long (integer 4)
+
+    return makeMessage(magic, 'verack', payload)
+
+def getPingMsg():
+    nonce = random.getrandbits(64)
+    #print("getPingMsg nonce = %d" % nonce)
+    payload = struct.pack('<Q', nonce)
+    print("getPingMsg nonce = " + str(hexlify(payload)))
+# Q - unsigned long long (integer 8)
+
+    return makeMessage(magic, 'ping', payload)
 
 def getPeerIP():
     peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
@@ -226,14 +249,15 @@ def checkMsg(data):
         #checksum = dataIO.read(4)
         #print(len(data))
         
-    print("recv " + ":".join(x.encode('hex') for x in data))
+    #print("recv " + ":".join(x.encode('hex') for x in data))
 
+    return msg
 
+recv_count = 0
 peerInfo = getPeerIP()
 print peerInfo[0][4][0]
 
 serverIP = peerInfo[0][4][0] # IP Address of reply 2
-serverIP = '71.232.77.250'
 serverIP = '24.146.187.40'
 
 # Create a TCP/IP socket
@@ -245,10 +269,8 @@ print >>sys.stderr, 'connecting to %s port %s' % server_address
 
 try:
     sock.connect(server_address)
-
     
     # Send data
-    #message = 'This is the message.  It will be repeated.'
     #message = MAGIC_NUMBER + 'version' + 0 + checksum
     message = getVersionMsg(serverIP)
     print >>sys.stderr, 'sending "%s"' % message
@@ -259,14 +281,30 @@ try:
     amount_expected = SOCKET_BUFSIZE #len(message)
 
     data = sock.recv(SOCKET_BUFSIZE)
-    checkMsg(data)
+
+    # Check received message and issue 'verack' if 'version' received
+    msg = checkMsg(data)
+
+    if msg['command'] == "version":
+        message = getVerackMsg()
+        print("Version received, sending 'verack'")
+        sock.sendall(message)    
+
     while amount_received < amount_expected:
 #    while len(data) > 0:
         data = sock.recv(SOCKET_BUFSIZE)
         amount_received += len(data)
-        checkMsg(data)
+        msg = checkMsg(data)
         print >>sys.stderr, 'received "%s"' % data
+        recv_count = recv_count + 1
 
+        # Send 'ping' periodically        
+        if recv_count > PING_FREQUENCY:
+            message = getPingMsg()
+            print >>sys.stderr, 'sending "%s"' % message
+            sock.sendall(message)
+            recv_count = 0
+           
     #print >>sys.stderr, 'received "%s"' % data
         
 
