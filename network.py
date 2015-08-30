@@ -140,7 +140,7 @@ import socket
 import sys
 import time
 import random
-import struct
+import struct #https://docs.python.org/2/library/struct.html#
 import hashlib
 import socket
 from netaddr import *
@@ -180,6 +180,8 @@ def getVersionMsg(serverIP):
  
     payload = struct.pack('<LQQ26s26sQsL', version, services, timestamp, addr_me,
         addr_you, nonce, sub_version_num, start_height)
+# < - little-endian
+# > - big-endian
 # L - unsigned long (integer 4)
 # Q - unsigned long long (integer 8)
 # Q - unsigned long long (integer 8)
@@ -225,7 +227,7 @@ def checkMsg(data):
     #print MAGIC_NUMBER
     dataIO = StringIO(data)
 
-    print("Received data length: " + str(len(data)))
+    print("\nReceived data length: " + str(len(data)))
     
     if data[0:4] == MAGIC_NUMBER:
         msg['magic_number'] = dataIO.read(4)
@@ -253,7 +255,67 @@ def checkMsg(data):
 
     return msg
 
+
+def decodeVersion(payload):
+
+    msg = {}
+    decodeData = StringIO(payload)
+    
+    msg['version'] = struct.unpack("<i", decodeData.read(4))
+    msg['services'] = struct.unpack("<Q", decodeData.read(8))
+    msg['timestamp'] = struct.unpack("<Q", decodeData.read(8))
+    
+    msg['addr_recv_services'] = struct.unpack("<Q", decodeData.read(8))
+    msg['addr_recv_ipv6'] = decodeData.read(12)
+    msg['addr_recv_ipv4'] = decodeData.read(4)
+    msg['addr_recv_port'] = struct.unpack(">H", decodeData.read(2))
+    
+    msg['addr_from_services'] = struct.unpack("<Q", decodeData.read(8))
+    msg['addr_from_ipv6'] = decodeData.read(12)
+    msg['addr_from_ipv4'] = decodeData.read(4)
+    msg['addr_from_port'] = struct.unpack(">H", decodeData.read(2))
+    
+    msg['nonce'] = struct.unpack("<Q", decodeData.read(8))
+
+    # Need to add user agent, height, and relay
+
+    print("\nVersion Payload")
+    print("----------------")
+    print("Version: " + str(msg['version'][0]))
+    print("Services: " + str(msg['services'][0]))
+    print("Timestamp: " + str(msg['timestamp'][0]))
+
+    print("Addr Services (Recv): " + str(msg['addr_recv_services'][0]))
+    print("Addr IPv6 (Recv): " + hexlify(msg['addr_recv_ipv6']))
+    print("Addr IPv4 (Recv): " + str(socket.inet_ntoa(msg['addr_recv_ipv4']))) 
+    print("Addr Port (Recv): " + str(msg['addr_recv_port'][0]))
+
+    print("Addr Services (From): " + str(msg['addr_from_services'][0]))
+    print("Addr IPv6 (From): " + hexlify(msg['addr_from_ipv6']))
+    print("Addr IPv4 (From): " + str(socket.inet_ntoa(msg['addr_from_ipv4'])))
+    print("Addr Port (From): " + str(msg['addr_from_port'][0]))
+
+    print("Nonce: " + str(msg['nonce'][0]))
+    
+    return msg
+
+def decodeInv(payload):
+
+    msg = {}
+    decodeData = StringIO(payload)
+    
+    msg['count'] = struct.unpack("<I", decodeData.read(4))[0] # Need to make work with VarInt
+    #msg['inventory'] = struct.unpack("<Q", decodeData.read(8))
+    
+    print("\nInventory Payload")
+    print("----------------")
+    print("Count: " + str(msg['count']))
+    #print("Services: " + str(msg['services'][0]))
+    
+    return msg
+
 recv_count = 0
+total_recv_count = 0
 peerInfo = getPeerIP()
 print peerInfo[0][4][0]
 
@@ -265,7 +327,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Connect the socket to the port where the server is listening
 server_address = (serverIP, DEFAULT_PORT) #('50.177.196.160', DEFAULT_PORT)
-print >>sys.stderr, 'connecting to %s port %s' % server_address
+print >>sys.stderr, '\nconnecting to %s port %s' % server_address
 
 try:
     sock.connect(server_address)
@@ -286,22 +348,36 @@ try:
     msg = checkMsg(data)
 
     if msg['command'] == "version":
+        decodeVersion(msg['payload'])
         message = getVerackMsg()
-        print("Version received, sending 'verack'")
-        sock.sendall(message)    
+        print("\nVersion received, sending 'verack'")
+        sock.sendall(message)
+    elif msg['command'] == "inv":
+        decodeInv()
 
     while amount_received < amount_expected:
 #    while len(data) > 0:
         data = sock.recv(SOCKET_BUFSIZE)
         amount_received += len(data)
         msg = checkMsg(data)
-        print >>sys.stderr, 'received "%s"' % data
+        print >>sys.stderr, '\nreceived "%s"' % data
+
+        if msg['command'] == "version":
+            decodeVersion(msg['payload'])
+            message = getVerackMsg()
+            print("\nVersion received, sending 'verack'")
+            sock.sendall(message)
+        elif msg['command'] == "inv":
+            decodeInv(msg['payload'])
+
+        
         recv_count = recv_count + 1
+        total_recv_count = total_recv_count + 1
 
         # Send 'ping' periodically        
         if recv_count > PING_FREQUENCY:
             message = getPingMsg()
-            print >>sys.stderr, 'sending "%s"' % message
+            print >>sys.stderr, '\nsending "%s"' % message
             sock.sendall(message)
             recv_count = 0
            
@@ -309,5 +385,5 @@ try:
         
 
 finally:
-    print >>sys.stderr, 'closing socket'
+    print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count
     sock.close()
