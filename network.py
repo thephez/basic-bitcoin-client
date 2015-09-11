@@ -160,13 +160,18 @@ DEFAULT_PORT = 8333
 SOCKET_BUFSIZE = 4096
 PING_FREQUENCY = 10
 
+
+class PeerNotFound(Exception):
+    pass
+
+
 def makeMessage(magic, command, payload):
     checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[0:4]
     return struct.pack('L12sL4s', magic, command, len(payload), checksum) + payload
-# L - unsigned long
-# s - char[12]
-# L - unsigned long
-# s - char[4]
+    # L - unsigned long
+    # s - char[12]
+    # L - unsigned long
+    # s - char[4]
  
 def getVersionMsg(serverIP):
     version = 60002
@@ -180,29 +185,29 @@ def getVersionMsg(serverIP):
  
     payload = struct.pack('<LQQ26s26sQsL', version, services, timestamp, addr_me,
         addr_you, nonce, sub_version_num, start_height)
-# < - little-endian
-# > - big-endian
-# L - unsigned long (integer 4)
-# Q - unsigned long long (integer 8)
-# Q - unsigned long long (integer 8)
-# s - char[26]
-# s - char[26]
-# Q - unsigned long long (integer 8)
-# s - char[]
-# L - unsigned long (integer 4)
+    # < - little-endian
+    # > - big-endian
+    # L - unsigned long (integer 4)
+    # Q - unsigned long long (integer 8)
+    # Q - unsigned long long (integer 8)
+    # s - char[26]
+    # s - char[26]
+    # Q - unsigned long long (integer 8)
+    # s - char[]
+    # L - unsigned long (integer 4)
 
     return makeMessage(magic, 'version', payload)
 
 def getVerackMsg():
     payload = "" #struct.pack('<LQQ26s26sQsL', "verack")
-# L - unsigned long (integer 4)
-# Q - unsigned long long (integer 8)
-# Q - unsigned long long (integer 8)
-# s - char[26]
-# s - char[26]
-# Q - unsigned long long (integer 8)
-# s - char[]
-# L - unsigned long (integer 4)
+    # L - unsigned long (integer 4)
+    # Q - unsigned long long (integer 8)
+    # Q - unsigned long long (integer 8)
+    # s - char[26]
+    # s - char[26]
+    # Q - unsigned long long (integer 8)
+    # s - char[]
+    # L - unsigned long (integer 4)
 
     return makeMessage(magic, 'verack', payload)
 
@@ -211,14 +216,52 @@ def getPingMsg():
     #print("getPingMsg nonce = %d" % nonce)
     payload = struct.pack('<Q', nonce)
     print("getPingMsg nonce = " + str(hexlify(payload)))
-# Q - unsigned long long (integer 8)
+    # Q - unsigned long long (integer 8)
 
     return makeMessage(magic, 'ping', payload)
 
 def getPeerIP():
-    peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
-    #print(peerInfo)
-    return peerInfo
+    socket_timeout = 3
+    peerInfo = socket.getaddrinfo('seed.bitcoinstats.com', 80)
+    #peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
+
+    # Randomly order list so the same node isn't picked every time
+    random.shuffle(peerInfo)
+
+    print('\n%d clients found' % len(peerInfo))
+
+    # Loop through all returned IP addresses until valid connection made
+    for index in range(len(peerInfo)):
+
+        # Create a TCP/IP socket and set timeout to 4 seconds
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(socket_timeout)
+
+        # Get IP address to test
+        serverIP = peerInfo[index][4][0]
+        # print(str(index) + " " + peerInfo[index][4][0])
+
+        # Connect the socket to the port where the server is listening
+        server_address = (serverIP, DEFAULT_PORT) # ('50.177.196.160', DEFAULT_PORT)
+
+        try:
+            #print >>sys.stderr, '\nConnecting to %s port %s' % server_address
+            sock.connect(server_address)
+            #print("Connection successful")
+            return peerInfo[index][4][0]
+
+        except:
+            print "Unexpected error: ", sys.exc_info()
+            pass
+
+        finally:
+            print >>sys.stderr, 'Closing socket'
+            sock.close()
+
+
+    # print(peerInfo)
+    raise(PeerNotFound)
+    return -1
 
 
 def checkMsg(data):
@@ -316,11 +359,12 @@ def decodeInv(payload):
 
 recv_count = 0
 total_recv_count = 0
-peerInfo = getPeerIP()
-print peerInfo[0][4][0]
+serverIP = getPeerIP()
+print("Server IP: " + serverIP)
+#print peerInfo[0][4][0]
 
-serverIP = peerInfo[0][4][0] # IP Address of reply 2
-serverIP = '24.146.187.40'
+#serverIP = peerInfo[0][4][0] # IP Address of reply 2
+#serverIP = '162.248.102.117'
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
