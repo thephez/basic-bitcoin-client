@@ -143,9 +143,16 @@ import random
 import struct #https://docs.python.org/2/library/struct.html#
 import hashlib
 import socket
+import logging
 from netaddr import *
 from cStringIO import StringIO
 from binascii import hexlify, unhexlify
+
+#logging.basicConfig()
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
 
 magic = 0xd9b4bef9
 MAGIC_NUMBER = "\xF9\xBE\xB4\xD9"
@@ -213,9 +220,8 @@ def getVerackMsg():
 
 def getPingMsg():
     nonce = random.getrandbits(64)
-    #print("getPingMsg nonce = %d" % nonce)
     payload = struct.pack('<Q', nonce)
-    print("getPingMsg nonce = " + str(hexlify(payload)))
+    logger.debug('getPingMsg nonce = %s', hexlify(payload))
     # Q - unsigned long long (integer 8)
 
     return makeMessage(magic, 'ping', payload)
@@ -228,7 +234,7 @@ def getPeerIP():
     # Randomly order list so the same node isn't picked every time
     random.shuffle(peerInfo)
 
-    print('\n%d clients found' % len(peerInfo))
+    logger.debug('%d clients found', len(peerInfo))
 
     # Loop through all returned IP addresses until valid connection made
     for index in range(len(peerInfo)):
@@ -239,7 +245,6 @@ def getPeerIP():
 
         # Get IP address to test
         serverIP = peerInfo[index][4][0]
-        # print(str(index) + " " + peerInfo[index][4][0])
 
         # Connect the socket to the port where the server is listening
         server_address = (serverIP, DEFAULT_PORT) # ('50.177.196.160', DEFAULT_PORT)
@@ -252,14 +257,13 @@ def getPeerIP():
 
         except:
             print "Unexpected error: ", sys.exc_info()
+            logger.warning('Unexpected error: %s', sys.exc_info())
             pass
 
         finally:
             print >>sys.stderr, 'Closing socket'
             sock.close()
 
-
-    # print(peerInfo)
     raise(PeerNotFound)
     return -1
 
@@ -270,23 +274,23 @@ def checkMsg(data):
     #print MAGIC_NUMBER
     dataIO = StringIO(data)
 
-    print("\nReceived data length: " + str(len(data)))
-    
+    logger.debug('Received data length: %d', len(data))
+
     if data[0:4] == MAGIC_NUMBER:
         msg['magic_number'] = dataIO.read(4)
-        print("Magic Number received - " + str(hexlify(msg['magic_number'])))
+        logger.debug('Magic Number received - %s', hexlify(msg['magic_number']))
 
         msg['command'] = dataIO.read(12).strip("\x00") # Remove Nulls at end of string
-        print("Command: " + msg['command']) #+ str(dataIO.read(12)))
+        logger.debug('  Command: %s', msg['command'])
         
         msg['length'] = struct.unpack("<I", dataIO.read(4))[0]
-        print("Payload Length: " + str(msg['length'])) #str(struct.unpack("<I", dataIO.read(4))[0]))
+        logger.debug('  Payload Length: %d', msg['length'])
 
         msg['checksum'] = dataIO.read(4)
-        print("Checksum : " + str(hexlify(msg['checksum'])) + " --- ") #+ str(struct.unpack("<I", checksum)[0]))
+        logger.debug('  Checksum: %s', msg['checksum'])
 
         msg['payload'] = dataIO.read(msg['length'])
-        print("Payload: " + str(hexlify(msg['payload'])))
+        logger.debug('  Payload: %s', msg['payload'])
 
         #print("Command: " + data[4:16])
         #print(dataIO.read(4))
@@ -350,9 +354,9 @@ def decodeInv(payload):
     msg['count'] = struct.unpack("<I", decodeData.read(4))[0] # Need to make work with VarInt
     #msg['inventory'] = struct.unpack("<Q", decodeData.read(8))
     
-    print("\nInventory Payload")
-    print("----------------")
-    print("Count: " + str(msg['count']))
+    logger.info('Inventory Payload')
+    logger.debug('----------------')
+    logger.debug('Count: %d', msg['count'])
     #print("Services: " + str(msg['services'][0]))
     
     return msg
@@ -360,11 +364,7 @@ def decodeInv(payload):
 recv_count = 0
 total_recv_count = 0
 serverIP = getPeerIP()
-print("Server IP: " + serverIP)
-#print peerInfo[0][4][0]
-
-#serverIP = peerInfo[0][4][0] # IP Address of reply 2
-#serverIP = '162.248.102.117'
+logger.info('Server IP: %s', serverIP)
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -377,7 +377,6 @@ try:
     sock.connect(server_address)
     
     # Send data
-    #message = MAGIC_NUMBER + 'version' + 0 + checksum
     message = getVersionMsg(serverIP)
     print >>sys.stderr, 'sending "%s"' % message
     sock.sendall(message)
@@ -394,25 +393,29 @@ try:
     if msg['command'] == "version":
         decodeVersion(msg['payload'])
         message = getVerackMsg()
-        print("\nVersion received, sending 'verack'")
+        logger.debug('Version received, sending \'verack\'')
         sock.sendall(message)
     elif msg['command'] == "inv":
         decodeInv()
+    elif msg['command'] == "ping":
+        logging.debug("Ping Received")
 
     while amount_received < amount_expected:
 #    while len(data) > 0:
         data = sock.recv(SOCKET_BUFSIZE)
         amount_received += len(data)
         msg = checkMsg(data)
-        print >>sys.stderr, '\nreceived "%s"' % data
+        #print >>sys.stderr, '\nreceived "%s"' % data
 
         if msg['command'] == "version":
             decodeVersion(msg['payload'])
             message = getVerackMsg()
-            print("\nVersion received, sending 'verack'")
+            logger.debug('Version received, sending \'verack\'')
             sock.sendall(message)
         elif msg['command'] == "inv":
             decodeInv(msg['payload'])
+        elif msg['command'] == "ping":
+            logger.debug('Ping received, need to send \'pong\'')
 
         
         recv_count = recv_count + 1
