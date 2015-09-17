@@ -144,6 +144,7 @@ import struct #https://docs.python.org/2/library/struct.html#
 import hashlib
 import socket
 import logging
+import datetime
 from netaddr import *
 from cStringIO import StringIO
 from binascii import hexlify, unhexlify
@@ -256,8 +257,7 @@ def getPeerIP():
             return peerInfo[index][4][0]
 
         except:
-            print "Unexpected error: ", sys.exc_info()
-            logger.warning('Unexpected error: %s', sys.exc_info())
+            logger.warning('Unexpected error: Server IP: %s %s', serverIP, sys.exc_info())
             pass
 
         finally:
@@ -290,7 +290,7 @@ def checkMsg(data):
         logger.debug('  Checksum: %s', msg['checksum'])
 
         msg['payload'] = dataIO.read(msg['length'])
-        logger.debug('  Payload: %s', msg['payload'])
+        logger.debug('  Payload: %s\n', msg['payload'])
 
         #print("Command: " + data[4:16])
         #print(dataIO.read(4))
@@ -302,6 +302,17 @@ def checkMsg(data):
 
     return msg
 
+
+def deserialize_int(data):
+    # From Bitnodes
+    length = struct.unpack("<B", data.read(1))
+    if length == 0xFD:
+        length = struct.unpack("<H", data.read(2))
+    elif length == 0xFE:
+        length = struct.unpack("<I", data.read(4))
+    elif length == 0xFF:
+        length = struct.unpack("<Q", data.read(8))
+    return length
 
 def decodeVersion(payload):
 
@@ -326,11 +337,15 @@ def decodeVersion(payload):
 
     # Need to add user agent, height, and relay
 
-    print("\nVersion Payload")
-    print("----------------")
-    print("Version: " + str(msg['version'][0]))
-    print("Services: " + str(msg['services'][0]))
-    print("Timestamp: " + str(msg['timestamp'][0]))
+    #print("\nVersion Payload")
+    logger.info('Version Payload')
+    logger.debug('----------------')
+    #print("Version: " + str(msg['version'][0]))
+    logger.debug('Version: %s', msg['version'][0])
+    #print("Services: " + str(msg['services'][0]))
+    logger.debug('Services: %s', msg['services'][0])
+    #print("Timestamp: " + str(datetime.datetime.fromtimestamp(msg['timestamp'][0]).strftime('%Y-%m-%d %H:%M:%S')))
+    logger.debug('Timestamp: %s', datetime.datetime.fromtimestamp(msg['timestamp'][0]).strftime('%Y-%m-%d %H:%M:%S'))
 
     print("Addr Services (Recv): " + str(msg['addr_recv_services'][0]))
     print("Addr IPv6 (Recv): " + hexlify(msg['addr_recv_ipv6']))
@@ -346,19 +361,25 @@ def decodeVersion(payload):
     
     return msg
 
-def decodeInv(payload):
+def decodeInvMessage(payload):
 
     msg = {}
     decodeData = StringIO(payload)
-    
-    msg['count'] = struct.unpack("<I", decodeData.read(4))[0] # Need to make work with VarInt
+
+    msg['count'] = deserialize_int(decodeData)
     #msg['inventory'] = struct.unpack("<Q", decodeData.read(8))
     
+    logger.info('Inventory Message')
+    logger.debug('----------------')
+    logger.debug('Count: %s', msg['count'][0])
+
+    return msg
+
+def decodeInventory(payload):
+
     logger.info('Inventory Payload')
     logger.debug('----------------')
-    logger.debug('Count: %d', msg['count'])
-    #print("Services: " + str(msg['services'][0]))
-    
+
     return msg
 
 recv_count = 0
@@ -396,7 +417,7 @@ try:
         logger.debug('Version received, sending \'verack\'')
         sock.sendall(message)
     elif msg['command'] == "inv":
-        decodeInv()
+        decodeInvMessage()
     elif msg['command'] == "ping":
         logging.debug("Ping Received")
 
@@ -406,6 +427,7 @@ try:
         amount_received += len(data)
         msg = checkMsg(data)
         #print >>sys.stderr, '\nreceived "%s"' % data
+        logger.info('Message received - %s', total_recv_count)
 
         if msg['command'] == "version":
             decodeVersion(msg['payload'])
@@ -413,7 +435,7 @@ try:
             logger.debug('Version received, sending \'verack\'')
             sock.sendall(message)
         elif msg['command'] == "inv":
-            decodeInv(msg['payload'])
+            decodeInvMessage(msg['payload'])
         elif msg['command'] == "ping":
             logger.debug('Ping received, need to send \'pong\'')
 
