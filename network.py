@@ -314,6 +314,7 @@ def deserialize_int(data):
         length = struct.unpack("<Q", data.read(8))
     return length
 
+
 def decodeVersion(payload):
 
     msg = {}
@@ -361,26 +362,56 @@ def decodeVersion(payload):
     
     return msg
 
+
 def decodeInvMessage(payload):
 
     msg = {}
     decodeData = StringIO(payload)
 
     msg['count'] = deserialize_int(decodeData)
-    #msg['inventory'] = struct.unpack("<Q", decodeData.read(8))
+    msg['inventory'] = decodeData.read((36 * msg['count'][0]))
     
-    logger.info('Inventory Message')
-    logger.debug('----------------')
-    logger.debug('Count: %s', msg['count'][0])
+    logger.info('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
+    #logger.debug('----------------')
+    #logger.debug('Count: %s', msg['count'][0])
+    #logger.debug('Inventory: %s', msg['inventory'])
+
+    for x in range(0, msg['count'][0]):
+        decodeInventory(msg['inventory'])
 
     return msg
+
 
 def decodeInventory(payload):
 
-    logger.info('Inventory Payload')
-    logger.debug('----------------')
+    msg = {}
+    decodeData = StringIO(payload)
+
+    msg['type'] = struct.unpack("<I", decodeData.read(4))[0]
+    msg['hash'] = decodeData.read(32)
+
+    logger.info('   Inventory Payload - ' + 'Type: %s', getInventoryType(msg['type']))
+    #logger.debug('  ----------------')
+    #logger.debug('  Type: %s', getInventoryType(msg['type']))
+    #logger.debug('  Hash: %s', msg['hash'])
 
     return msg
+
+
+def getInventoryType(inventorytype):
+    typedesc= "Undefined"
+
+    if inventorytype == 0:
+        typedesc = "Error"
+    elif inventorytype == 1:
+        typedesc = "Msg_Tx"
+    elif inventorytype == 2:
+        typedesc = "Msg_Block"
+    elif inventorytype == 3:
+        typedesc = "Msg_Filtered_Block"
+
+    return typedesc
+
 
 recv_count = 0
 total_recv_count = 0
