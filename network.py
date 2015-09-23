@@ -338,27 +338,25 @@ def decodeVersion(payload):
 
     # Need to add user agent, height, and relay
 
-    #print("\nVersion Payload")
     logger.info('Version Payload')
     logger.debug('----------------')
-    #print("Version: " + str(msg['version'][0]))
     logger.debug('Version: %s', msg['version'][0])
-    #print("Services: " + str(msg['services'][0]))
     logger.debug('Services: %s', msg['services'][0])
-    #print("Timestamp: " + str(datetime.datetime.fromtimestamp(msg['timestamp'][0]).strftime('%Y-%m-%d %H:%M:%S')))
     logger.debug('Timestamp: %s', datetime.datetime.fromtimestamp(msg['timestamp'][0]).strftime('%Y-%m-%d %H:%M:%S'))
 
-    print("Addr Services (Recv): " + str(msg['addr_recv_services'][0]))
-    print("Addr IPv6 (Recv): " + hexlify(msg['addr_recv_ipv6']))
-    print("Addr IPv4 (Recv): " + str(socket.inet_ntoa(msg['addr_recv_ipv4']))) 
-    print("Addr Port (Recv): " + str(msg['addr_recv_port'][0]))
+    logger.debug('Addr Services (Recv): %s', msg['addr_recv_services'][0])
+    logger.debug('Addr IPv6 (Recv): %s', hexlify(msg['addr_recv_ipv6']))
+    #print("Addr IPv4 (Recv): " + str(socket.inet_ntoa(msg['addr_recv_ipv4'])))
+    logger.debug('Addr IPv4 (Recv): %s', socket.inet_ntoa(msg['addr_recv_ipv4']))
+    logger.debug('Addr Port (Recv): %s', msg['addr_recv_port'][0])
 
-    print("Addr Services (From): " + str(msg['addr_from_services'][0]))
-    print("Addr IPv6 (From): " + hexlify(msg['addr_from_ipv6']))
-    print("Addr IPv4 (From): " + str(socket.inet_ntoa(msg['addr_from_ipv4'])))
-    print("Addr Port (From): " + str(msg['addr_from_port'][0]))
+    logger.debug('Addr Services (From): %s', msg['addr_from_services'][0])
+    logger.debug('Addr IPv6 (From): %s', hexlify(msg['addr_from_ipv6']))
+    #print("Addr IPv4 (From): " + str(socket.inet_ntoa(msg['addr_from_ipv4'])))
+    logger.debug('Addr IPv4 (From): %s', socket.inet_ntoa(msg['addr_from_ipv4']))
+    logger.debug('Addr Port (Recv): %s', msg['addr_recv_port'][0])
 
-    print("Nonce: " + str(msg['nonce'][0]))
+    logger.debug('Nonce : %s', msg['nonce'][0])
     
     return msg
 
