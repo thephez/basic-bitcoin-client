@@ -268,6 +268,12 @@ def getPeerIP():
     return -1
 
 
+def getAddr():
+    logger.debug('getAddr')
+    payload = ''
+
+    return makeMessage(magic, 'getaddr', payload)
+
 def checkMsg(data):
     msg = {}
     #print data[0:4]
@@ -290,7 +296,7 @@ def checkMsg(data):
         logger.debug('  Checksum: %s', msg['checksum'])
 
         msg['payload'] = dataIO.read(msg['length'])
-        logger.debug('  Payload: %s\n', msg['payload'])
+        logger.debug('  Payload: %s\n', hexlify(msg['payload']))
 
         #print("Command: " + data[4:16])
         #print(dataIO.read(4))
@@ -364,34 +370,23 @@ def decodeVersion(payload):
 def decodeInvMessage(payload):
 
     msg = {}
+    inventory = []
     decodeData = StringIO(payload)
 
     msg['count'] = deserialize_int(decodeData)
     msg['inventory'] = decodeData.read((36 * msg['count'][0]))
     
     logger.info('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
-    #logger.debug('----------------')
-    #logger.debug('Count: %s', msg['count'][0])
-    #logger.debug('Inventory: %s', msg['inventory'])
+
+    decodeInventoryMsg = StringIO(msg['inventory'])
 
     for x in range(0, msg['count'][0]):
-        decodeInventory(msg['inventory'])
 
-    return msg
+        invType = getInventoryType(struct.unpack("<I", decodeInventoryMsg.read(4))[0])
+        invHash = decodeInventoryMsg.read(32)
 
-
-def decodeInventory(payload):
-
-    msg = {}
-    decodeData = StringIO(payload)
-
-    msg['type'] = struct.unpack("<I", decodeData.read(4))[0]
-    msg['hash'] = decodeData.read(32)
-
-    logger.info('   Inventory Payload - ' + 'Type: %s', getInventoryType(msg['type']))
-    #logger.debug('  ----------------')
-    #logger.debug('  Type: %s', getInventoryType(msg['type']))
-    #logger.debug('  Hash: %s', msg['hash'])
+        inventory.append({'type': invType, 'hash': invHash})
+        logger.debug('   Inventory Payload - ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
 
     return msg
 
@@ -421,14 +416,14 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Connect the socket to the port where the server is listening
 server_address = (serverIP, DEFAULT_PORT) #('50.177.196.160', DEFAULT_PORT)
-print >>sys.stderr, '\nconnecting to %s port %s' % server_address
+print >>sys.stderr, '\nConnecting to %s port %s' % server_address
 
 try:
     sock.connect(server_address)
     
     # Send data
     message = getVersionMsg(serverIP)
-    print >>sys.stderr, 'sending "%s"' % message
+    print >>sys.stderr, 'Sending "%s"' % message
     sock.sendall(message)
 
     # Look for the response
@@ -450,6 +445,7 @@ try:
     elif msg['command'] == "ping":
         logging.debug("Ping Received")
 
+
     while amount_received < amount_expected:
 #    while len(data) > 0:
         data = sock.recv(SOCKET_BUFSIZE)
@@ -463,6 +459,11 @@ try:
             message = getVerackMsg()
             logger.debug('Version received, sending \'verack\'')
             sock.sendall(message)
+        elif msg['command'] == "verack":
+            logger.debug('Verack received, sending \'getAddr\'')
+            #sock.sendall(getAddr())
+        elif msg['command'] == "addr":
+            logger.debug('addr received')
         elif msg['command'] == "inv":
             decodeInvMessage(msg['payload'])
         elif msg['command'] == "ping":
