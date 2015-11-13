@@ -153,7 +153,7 @@ from binascii import hexlify, unhexlify
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.INFO)
+#logger.setLevel(logging.INFO)
 
 magic = 0xd9b4bef9
 MAGIC_NUMBER = "\xF9\xBE\xB4\xD9"
@@ -168,6 +168,11 @@ DEFAULT_PORT = 8333
 SOCKET_BUFSIZE = 4096
 PING_FREQUENCY = 100
 HEADER_LEN = 24
+
+MSG_ERROR = 0
+MSG_TX = 1
+MSG_BLOCK = 2
+MSG_FILTERED_BLOCK = 3
 
 class PeerNotFound(Exception):
     pass
@@ -276,7 +281,8 @@ def getPeerIP():
     return -1
 
 
-def getAddr():
+def getAddrMsg():
+    print('------------------------------------------------------getAddrMsg---------------------------------')
     logger.debug('getAddr')
     payload = ''
 
@@ -400,9 +406,11 @@ def decodeInvMessage(payload):
     for x in range(0, msg['count'][0]):
 
         invType = getInventoryType(struct.unpack("<I", decodeInventoryMsg.read(4))[0])
-        invHash = decodeInventoryMsg.read(32)
+        invHash = decodeInventoryMsg.read(32)[::-1]
 
         inventory.append({'type': invType, 'hash': invHash})
+        if invType == 'Msg_Block':
+            logger.info('   Inventory Payload - Block Found ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
         logger.debug('   Inventory Payload - ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
 
     return msg
@@ -467,6 +475,10 @@ try:
             sock.sendall(message)
         elif msg['command'] == "inv":
             decodeInvMessage()
+        elif msg['command'] == "verack":
+            logger.debug('Verack received, sending \'getAddr\'')
+            #getAddrMsg()
+            #sock.sendall(getAddrMsg())
         elif msg['command'] == "ping":
             logger.debug('Ping received, sending \'pong\'')
             sock.sendall(getPongMsg(msg['payload']))
@@ -491,7 +503,7 @@ try:
                 sock.sendall(message)
             elif msg['command'] == "verack":
                 logger.debug('Verack received, sending \'getAddr\'')
-                #sock.sendall(getAddr())
+                #sock.sendall(getAddrMsg())
             elif msg['command'] == "addr":
                 logger.debug('addr received')
             elif msg['command'] == "getaddr":
