@@ -153,7 +153,7 @@ from binascii import hexlify, unhexlify
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-
+logger.setLevel(logging.INFO)
 
 magic = 0xd9b4bef9
 MAGIC_NUMBER = "\xF9\xBE\xB4\xD9"
@@ -166,7 +166,7 @@ RELAY = 0  # set to 1 to receive all txs
 DEFAULT_PORT = 8333
 
 SOCKET_BUFSIZE = 4096
-PING_FREQUENCY = 10
+PING_FREQUENCY = 100
 HEADER_LEN = 24
 
 class PeerNotFound(Exception):
@@ -283,12 +283,10 @@ def getAddr():
     return makeMessage(magic, 'getaddr', payload)
 
 def checkMsg(data):
-    msg = {}
+    recvmsg = {}
     all_msgs = []
-    print('checkMsg: ' + hexlify(data))
+    logger.debug('checkMsg: ' + hexlify(data))
     #print data[0:4]
-    #splitMessages(data)
-    #print MAGIC_NUMBER
 
     data_len = len(data)
     if data_len < HEADER_LEN:
@@ -302,51 +300,29 @@ def checkMsg(data):
     # Check for multiple messages
     while dataIO.tell() < len(data):
         if data[0:4] == MAGIC_NUMBER:
-            msg['magic_number'] = dataIO.read(4)
-            logger.debug('Magic Number received - %s', hexlify(msg['magic_number']))
+            recvmsg['magic_number'] = dataIO.read(4)
+            #logger.debug('Magic Number received - %s', hexlify(recvmsg['magic_number']))
 
-            msg['command'] = dataIO.read(12).strip("\x00") # Remove Nulls at end of string
-            logger.debug('  Command: %s', msg['command'])
+            recvmsg['command'] = dataIO.read(12).strip("\x00") # Remove Nulls at end of string
+            logger.info('  Command: %s', recvmsg['command'])
 
-            msg['length'] = struct.unpack("<I", dataIO.read(4))[0]
-            logger.debug('  Payload Length: %d', msg['length'])
+            recvmsg['length'] = struct.unpack("<I", dataIO.read(4))[0]
+            logger.debug('  Payload Length: %d', recvmsg['length'])
 
-            msg['checksum'] = dataIO.read(4)
-            logger.debug('  Checksum: %s', msg['checksum'])
+            recvmsg['checksum'] = dataIO.read(4)
+            logger.info('  Checksum: %s', str(hexlify(recvmsg['checksum'])))
 
-            msg['payload'] = dataIO.read(msg['length'])
-            logger.debug('  Payload: %s\n', hexlify(msg['payload']))
+            recvmsg['payload'] = dataIO.read(recvmsg['length'])
+            logger.debug('  Payload: %s\n', hexlify(recvmsg['payload']))
 
-            # Temporary hack until msgs fixed
-            if msg['command'] == "ping":
-                print('PING RECEIVED - SEND PONG---------------------------------------------------------------------------------------------------------------------------------------')
+            #https://docs.python.org/2/library/stdtypes.html
+            all_msgs.append(recvmsg.copy())
 
-                logger.debug('Ping received, sending \'pong\'')
-                sock.sendall(getPongMsg(msg['payload']))
-
-#https://docs.python.org/2/library/stdtypes.html
-            all_msgs.append(msg)
-
-            #print('msg = ' + str(msg))
-            print('Original Loop: msgs[' + str(len(all_msgs)-1) + '] = ' + str(all_msgs[len(all_msgs)-1]))
-
-            #print("Command: " + data[4:16])
-            #print(dataIO.read(4))
-            #print(struct.unpack("<I", data.read(4))[0])
-            #checksum = dataIO.read(4)
-            #print(len(data))
-    print('Number of messages found = ' + str(len(all_msgs)))
-    #print(str(all_msgs))
-    #for index in range(0, len(all_msgs)):
-    #    print('checkMsg - Outside Loop: ' + str(index) + ' ' + str(all_msgs[index]))
-
-    #printMsgs(msgs)
-    #print('Message 1 (0) = ' + str(msgs[0]))
+            #printMsgs(all_msgs)
 
     #print("recv " + ":".join(x.encode('hex') for x in data))
     #print("String IO Length = " + str(dataIO.tell()))
 
-    #return msg
     return all_msgs
 
 
@@ -417,7 +393,7 @@ def decodeInvMessage(payload):
     msg['count'] = deserialize_int(decodeData)
     msg['inventory'] = decodeData.read((36 * msg['count'][0]))
     
-    logger.info('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
+    logger.debug('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
 
     decodeInventoryMsg = StringIO(msg['inventory'])
 
@@ -461,6 +437,7 @@ logger.info('Server IP: %s', serverIP)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Connect the socket to the port where the server is listening
+serverIP = '71.232.77.250'
 server_address = (serverIP, DEFAULT_PORT) #('50.177.196.160', DEFAULT_PORT)
 print >>sys.stderr, '\nConnecting to %s port %s' % server_address
 
@@ -481,7 +458,6 @@ try:
     # Check received message and issue 'verack' if 'version' received
     msgs = checkMsg(data)
 
-    #printMsgs(msgs)
     for index in range(len(msgs)):
         msg = msgs[index]
 
@@ -493,23 +469,21 @@ try:
         elif msg['command'] == "inv":
             decodeInvMessage()
         elif msg['command'] == "ping":
-            logging.debug("Ping Received")
+            logger.debug('Ping received, sending \'pong\'')
+            sock.sendall(getPongMsg(msg['payload']))
 
-
-    while amount_received < amount_expected:
-        #    while len(data) > 0:
+    while 1 == 1: #amount_received < amount_expected:
         data = sock.recv(SOCKET_BUFSIZE)
         amount_received += len(data)
+
+        logger.info('Time = ' + time.strftime("%I:%M:%S"))
+        logger.info('Message received - %s', total_recv_count)
         msgs = checkMsg(data)
 
         #printMsgs(msgs)
 
-        for index in range(0, len(msgs) - 1):
-            #print('length of msgs = ' + str(len(msgs)))
+        for index in range(0, len(msgs)):
             msg = msgs[index]
-            #print(str(index) + str(x))
-            #print >>sys.stderr, '\nreceived "%s"' % data
-            logger.info('Message received - %s', total_recv_count)
 
             if msg['command'] == "version":
                 decodeVersion(msg['payload'])
@@ -518,7 +492,7 @@ try:
                 sock.sendall(message)
             elif msg['command'] == "verack":
                 logger.debug('Verack received, sending \'getAddr\'')
-                sock.sendall(getAddr())
+                #sock.sendall(getAddr())
             elif msg['command'] == "addr":
                 logger.debug('addr received')
             elif msg['command'] == "getaddr":
@@ -531,19 +505,23 @@ try:
                 logger.debug(msg['command'] + ' received')
                 decodeInvMessage(msg['payload'])
             elif msg['command'] == "ping":
-                logger.debug('Ping received, need to send \'pong\'')
+                logger.info('Ping received, sending \'pong\'')
+                sock.sendall(getPongMsg(msg['payload']))
+            elif msg['command'] == "block":
+                logger.info('\n\n\n\n\n------------------------------- Block Mined -------------------------------\n\n\n\n\n')
+                logger.debug(msg)
             else:
-                logger.debug('------------------------------------------------------------------------------------------------------------------- ' + msg['command'] + ' received')
+                logger.info('------------------------------------------------------------------------------------------------------------------- ' + msg['command'] + ' received')
 
-            recv_count = recv_count + 1
-            total_recv_count = total_recv_count + 1
+        recv_count = recv_count + 1
+        total_recv_count = total_recv_count + 1
 
-            # Send 'ping' periodically
-            if recv_count > PING_FREQUENCY:
-                message = getPingMsg()
-                print >>sys.stderr, '\nsending "%s"' % message
-                sock.sendall(message)
-                recv_count = 0
+        # Send 'ping' periodically
+        if recv_count > PING_FREQUENCY:
+            message = getPingMsg()
+            print >>sys.stderr, '\nsending "%s"' % message
+            sock.sendall(message)
+            recv_count = 0
            
     #print >>sys.stderr, 'received "%s"' % data
         
