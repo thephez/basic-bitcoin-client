@@ -437,7 +437,6 @@ logger.info('Server IP: %s', serverIP)
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Connect the socket to the port where the server is listening
-serverIP = '71.232.77.250'
 server_address = (serverIP, DEFAULT_PORT) #('50.177.196.160', DEFAULT_PORT)
 print >>sys.stderr, '\nConnecting to %s port %s' % server_address
 
