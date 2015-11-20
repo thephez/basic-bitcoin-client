@@ -18,13 +18,20 @@ class HeaderTooShortError(Exception):
     pass
 
 
+class PayloadTooShortError(Exception):
+    pass
+
+
+class PayloadChecksumError(Exception):
+    pass
+
+
 class Messages():
 
     def checkMsg(self, data):
         recvmsg = {}
         all_msgs = []
         logger.debug(hexlify(data))
-        #print data[0:4]
 
         data_len = len(data)
         if data_len < HEADER_LEN:
@@ -52,19 +59,27 @@ class Messages():
                 recvmsg['length'] = struct.unpack("<I", dataIO.read(4))[0]
                 logger.debug('  Payload Length: %d', recvmsg['length'])
 
+                if (data_len - HEADER_LEN) < recvmsg['length']:
+                    raise PayloadTooShortError("got {} of {} bytes".format(
+                        data_len - HEADER_LEN, recvmsg['length']))
+
                 recvmsg['checksum'] = dataIO.read(4)
                 logger.info('  Checksum: %s', str(hexlify(recvmsg['checksum'])))
 
                 recvmsg['payload'] = dataIO.read(recvmsg['length'])
                 logger.debug('  Payload: %s\n', hexlify(recvmsg['payload']))
 
+                checksum = hashlib.sha256(hashlib.sha256(recvmsg['payload']).digest()).digest()[0:4]
+
+                if checksum != recvmsg['checksum']:
+                    raise PayloadChecksumError("got {} instead of {} ".format(
+                        hexlify(checksum), hexlify(recvmsg['checksum'])))
+
+
                 #https://docs.python.org/2/library/stdtypes.html
                 all_msgs.append(recvmsg.copy())
 
                 #printMsgs(all_msgs)
-
-        #print("recv " + ":".join(x.encode('hex') for x in data))
-        #print("String IO Length = " + str(dataIO.tell()))
 
         return all_msgs
 
@@ -126,7 +141,7 @@ class Messages():
         return self.makeMessage(MAGIC_NUMBER, 'ping', payload)
 
     def getPongMsg(self, payload):
-        print(hexlify(payload))
+        #print(hexlify(payload))
         logger.debug('getPongMsg nonce = %s\n', hexlify(payload))
 
         return self.makeMessage(MAGIC_NUMBER, 'pong', payload)

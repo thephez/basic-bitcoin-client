@@ -151,14 +151,11 @@ from binascii import hexlify, unhexlify
 from connection import *
 from messages import *
 
-#logging.basicConfig()
 logging.basicConfig(format='%(funcName)s:%(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 #logger.setLevel(logging.INFO)
 
-magic = 0xd9b4bef9
-MAGIC_NUMBER = "\xF9\xBE\xB4\xD9"
 MIN_PROTOCOL_VERSION = 70001
 PROTOCOL_VERSION = 70002
 SERVICES = 0  # set to 1 for NODE_NETWORK
