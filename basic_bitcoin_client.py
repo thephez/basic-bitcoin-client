@@ -149,6 +149,7 @@ from cStringIO import StringIO
 from binascii import hexlify, unhexlify
 
 from connection import *
+from messages import *
 
 #logging.basicConfig()
 logging.basicConfig(format='%(funcName)s:%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -175,122 +176,9 @@ MSG_TX = 1
 MSG_BLOCK = 2
 MSG_FILTERED_BLOCK = 3
 
-class PeerNotFound(Exception):
+
+class InventoryMessageError(Exception):
     pass
-
-class HeaderTooShortError(Exception):
-    pass
-
-def makeMessage(magic, command, payload):
-    checksum = hashlib.sha256(hashlib.sha256(payload).digest()).digest()[0:4]
-    return struct.pack('L12sL4s', magic, command, len(payload), checksum) + payload
-    # L - unsigned long
-    # s - char[12]
-    # L - unsigned long
-    # s - char[4]
- 
-def getVersionMsg(serverIP):
-    version = 60002
-    services = 1
-    timestamp = int(time.time())
-    addr_me = '127.0.0.1' #serverIP #utils.netaddr(socket.inet_aton("127.0.0.1"), 8333)
-    addr_you = serverIP #"50.177.196.160" #utils.netaddr(socket.inet_aton("71.232.77.250"), 8333)
-    nonce = random.getrandbits(64)
-    sub_version_num = "" #utils.varstr('')
-    start_height = 0
- 
-    payload = struct.pack('<LQQ26s26sQsL', version, services, timestamp, addr_me,
-        addr_you, nonce, sub_version_num, start_height)
-    # < - little-endian
-    # > - big-endian
-    # L - unsigned long (integer 4)
-    # Q - unsigned long long (integer 8)
-    # Q - unsigned long long (integer 8)
-    # s - char[26]
-    # s - char[26]
-    # Q - unsigned long long (integer 8)
-    # s - char[]
-    # L - unsigned long (integer 4)
-
-    return makeMessage(magic, 'version', payload)
-
-def getVerackMsg():
-    payload = "" #struct.pack('<LQQ26s26sQsL', "verack")
-    # L - unsigned long (integer 4)
-    # Q - unsigned long long (integer 8)
-    # Q - unsigned long long (integer 8)
-    # s - char[26]
-    # s - char[26]
-    # Q - unsigned long long (integer 8)
-    # s - char[]
-    # L - unsigned long (integer 4)
-
-    return makeMessage(magic, 'verack', payload)
-
-def getPingMsg():
-    nonce = random.getrandbits(64)
-    payload = struct.pack('<Q', nonce)
-    logger.debug('getPingMsg nonce = %s', hexlify(payload))
-    # Q - unsigned long long (integer 8)
-
-    return makeMessage(magic, 'ping', payload)
-
-def getPongMsg(payload):
-    print(hexlify(payload))
-    logger.debug('getPongMsg nonce = %s\n', hexlify(payload))
-
-    return makeMessage(magic, 'pong', payload)
-
-
-def getAddrMsg():
-    print('------------------------------------------------------getAddrMsg---------------------------------')
-    logger.debug('getAddr')
-    payload = ''
-
-    return makeMessage(magic, 'getaddr', payload)
-
-def checkMsg(data):
-    recvmsg = {}
-    all_msgs = []
-    logger.debug('checkMsg: ' + hexlify(data))
-    #print data[0:4]
-
-    data_len = len(data)
-    if data_len < HEADER_LEN:
-        raise HeaderTooShortError("got {} of {} bytes".format(
-            data_len, HEADER_LEN))
-
-    dataIO = StringIO(data)
-
-    logger.debug('Received data length: %d', len(data))
-
-    # Check for multiple messages
-    while dataIO.tell() < len(data):
-        if data[0:4] == MAGIC_NUMBER:
-            recvmsg['magic_number'] = dataIO.read(4)
-            #logger.debug('Magic Number received - %s', hexlify(recvmsg['magic_number']))
-
-            recvmsg['command'] = dataIO.read(12).strip("\x00") # Remove Nulls at end of string
-            logger.info('  Command: %s', recvmsg['command'])
-
-            recvmsg['length'] = struct.unpack("<I", dataIO.read(4))[0]
-            logger.debug('  Payload Length: %d', recvmsg['length'])
-
-            recvmsg['checksum'] = dataIO.read(4)
-            logger.info('  Checksum: %s', str(hexlify(recvmsg['checksum'])))
-
-            recvmsg['payload'] = dataIO.read(recvmsg['length'])
-            logger.debug('  Payload: %s\n', hexlify(recvmsg['payload']))
-
-            #https://docs.python.org/2/library/stdtypes.html
-            all_msgs.append(recvmsg.copy())
-
-            #printMsgs(all_msgs)
-
-    #print("recv " + ":".join(x.encode('hex') for x in data))
-    #print("String IO Length = " + str(dataIO.tell()))
-
-    return all_msgs
 
 
 def deserialize_int(data):
@@ -358,8 +246,10 @@ def decodeInvMessage(payload):
     decodeData = StringIO(payload)
 
     msg['count'] = deserialize_int(decodeData)
+    # Make sure inventory message length matches count properly
+
     msg['inventory'] = decodeData.read((36 * msg['count'][0]))
-    
+
     logger.debug('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
 
     decodeInventoryMsg = StringIO(msg['inventory'])
@@ -392,12 +282,6 @@ def getInventoryType(inventorytype):
     return typedesc
 
 
-def printMsgs(message):
-    print('printMsgs - ' + 'length of msgs = ' + str(len(message)))
-    for index in range(0, len(message)):
-        print('printMsgs - ' + str(index) + ' ' + str(message[index]))
-
-
 myconn = Connection()
 
 recv_count = 0
@@ -406,9 +290,10 @@ total_recv_count = 0
 try:
     # Open Connection
     sock = myconn.open()
+    mesg = Messages()
 
     # Send data
-    message = getVersionMsg(myconn.serverIP)
+    message = mesg.getVersionMsg(myconn.serverIP)
     print >>sys.stderr, 'Sending "%s"' % message
     sock.sendall(message)
 
@@ -422,21 +307,21 @@ try:
 
         logger.info('Time = ' + time.strftime("%I:%M:%S"))
         logger.info('Message received - %s', total_recv_count)
-        msgs = checkMsg(data)
+        msgs = mesg.checkMsg(data)
 
-        #printMsgs(msgs)
+        #mesg.printMsgs(msgs)
 
         for index in range(0, len(msgs)):
             msg = msgs[index]
 
             if msg['command'] == "version":
                 decodeVersion(msg['payload'])
-                message = getVerackMsg()
+                message = mesg.getVerackMsg()
                 logger.debug('Version received, sending \'verack\'')
                 sock.sendall(message)
             elif msg['command'] == "verack":
                 logger.debug('Verack received, sending \'getAddr\'')
-                #sock.sendall(getAddrMsg())
+                #sock.sendall(mesg.getAddrMsg())
             elif msg['command'] == "addr":
                 logger.debug('addr received')
             elif msg['command'] == "getaddr":
@@ -450,7 +335,7 @@ try:
                 decodeInvMessage(msg['payload'])
             elif msg['command'] == "ping":
                 logger.info('Ping received, sending \'pong\'')
-                sock.sendall(getPongMsg(msg['payload']))
+                sock.sendall(mesg.getPongMsg(msg['payload']))
             elif msg['command'] == "block":
                 logger.info('\n\n\n\n\n------------------------------- Block Mined -------------------------------\n\n\n\n\n')
                 logger.debug(msg)
@@ -462,7 +347,7 @@ try:
 
         # Send 'ping' periodically
         if recv_count > PING_FREQUENCY:
-            message = getPingMsg()
+            message = mesg.getPingMsg()
             print >>sys.stderr, '\nsending "%s"' % message
             sock.sendall(message)
             recv_count = 0
