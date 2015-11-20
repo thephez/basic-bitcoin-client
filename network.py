@@ -136,7 +136,6 @@ Reference: https://en.bitcoin.it/wiki/Protocol_specification
 -------------------------------------------------------------------------------
 """
 
-import socket
 import sys
 import time
 import random
@@ -149,8 +148,10 @@ from netaddr import *
 from cStringIO import StringIO
 from binascii import hexlify, unhexlify
 
+from connection import *
+
 #logging.basicConfig()
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(funcName)s:%(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 #logger.setLevel(logging.INFO)
@@ -239,46 +240,6 @@ def getPongMsg(payload):
     logger.debug('getPongMsg nonce = %s\n', hexlify(payload))
 
     return makeMessage(magic, 'pong', payload)
-
-def getPeerIP():
-    socket_timeout = 3
-    peerInfo = socket.getaddrinfo('seed.bitcoinstats.com', 80)
-    #peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
-
-    # Randomly order list so the same node isn't picked every time
-    random.shuffle(peerInfo)
-
-    logger.debug('%d clients found', len(peerInfo))
-
-    # Loop through all returned IP addresses until valid connection made
-    for index in range(len(peerInfo)):
-
-        # Create a TCP/IP socket and set timeout to 4 seconds
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(socket_timeout)
-
-        # Get IP address to test
-        serverIP = peerInfo[index][4][0]
-
-        # Connect the socket to the port where the server is listening
-        server_address = (serverIP, DEFAULT_PORT) # ('50.177.196.160', DEFAULT_PORT)
-
-        try:
-            #print >>sys.stderr, '\nConnecting to %s port %s' % server_address
-            sock.connect(server_address)
-            #print("Connection successful")
-            return peerInfo[index][4][0]
-
-        except:
-            logger.warning('Unexpected error: Server IP: %s %s', serverIP, sys.exc_info())
-            pass
-
-        finally:
-            print >>sys.stderr, 'Closing socket'
-            sock.close()
-
-    raise(PeerNotFound)
-    return -1
 
 
 def getAddrMsg():
@@ -436,23 +397,18 @@ def printMsgs(message):
     for index in range(0, len(message)):
         print('printMsgs - ' + str(index) + ' ' + str(message[index]))
 
+
+myconn = Connection()
+
 recv_count = 0
 total_recv_count = 0
-serverIP = getPeerIP()
-logger.info('Server IP: %s', serverIP)
-
-# Create a TCP/IP socket
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# Connect the socket to the port where the server is listening
-server_address = (serverIP, DEFAULT_PORT) #('50.177.196.160', DEFAULT_PORT)
-print >>sys.stderr, '\nConnecting to %s port %s' % server_address
 
 try:
-    sock.connect(server_address)
-    
+    # Open Connection
+    sock = myconn.open()
+
     # Send data
-    message = getVersionMsg(serverIP)
+    message = getVersionMsg(myconn.serverIP)
     print >>sys.stderr, 'Sending "%s"' % message
     sock.sendall(message)
 
@@ -460,30 +416,7 @@ try:
     amount_received = 0
     amount_expected = SOCKET_BUFSIZE #len(message)
 
-    data = sock.recv(SOCKET_BUFSIZE)
-
-    # Check received message and issue 'verack' if 'version' received
-    msgs = checkMsg(data)
-
-    for index in range(len(msgs)):
-        msg = msgs[index]
-
-        if msg['command'] == "version":
-            decodeVersion(msg['payload'])
-            message = getVerackMsg()
-            logger.debug('Version received, sending \'verack\'')
-            sock.sendall(message)
-        elif msg['command'] == "inv":
-            decodeInvMessage()
-        elif msg['command'] == "verack":
-            logger.debug('Verack received, sending \'getAddr\'')
-            #getAddrMsg()
-            #sock.sendall(getAddrMsg())
-        elif msg['command'] == "ping":
-            logger.debug('Ping received, sending \'pong\'')
-            sock.sendall(getPongMsg(msg['payload']))
-
-    while 1 == 1: #amount_received < amount_expected:
+    while 1 == 1:
         data = sock.recv(SOCKET_BUFSIZE)
         amount_received += len(data)
 
@@ -539,4 +472,4 @@ try:
 
 finally:
     print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count
-    sock.close()
+    myconn.sock.close()
