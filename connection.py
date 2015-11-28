@@ -23,8 +23,15 @@ class Connection():
 
     def get_peer_IP(self):
         socket_timeout = 3
-        peerinfo = socket.getaddrinfo('seed.bitcoinstats.com', 80)
-        #peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
+
+        try:
+            peerinfo = socket.getaddrinfo('seed.bitcoinstats.com', 80)
+            #peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
+        except:
+            logger.warning('Unexpected error: %s', sys.exc_info())
+            sys.exit('Program exiting - No peers found')
+            #pass
+
 
         # Randomly order list so the same node isn't picked every time
         random.shuffle(peerinfo)
@@ -77,7 +84,7 @@ class Connection():
             self.sock.connect(server_address)
             return self.sock
         finally:
-            print >>sys.stderr, 'aslkdfj'
+            print >>sys.stderr, 'Open Connection'
 
     def close(self):
 
