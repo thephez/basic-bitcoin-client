@@ -304,6 +304,7 @@ try:
 
         logger.info('Time = ' + time.strftime("%I:%M:%S"))
         logger.info('Message received - %s', total_recv_count)
+
         msgs = mesg.checkMsg(data)
 
         #mesg.printMsgs(msgs)
@@ -350,8 +351,11 @@ try:
             recv_count = 0
            
     #print >>sys.stderr, 'received "%s"' % data
-        
+
+except:
+    logger.warning('Unexpected error: %s', sys.exc_info())
 
 finally:
-    print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count
-    myconn.sock.close()
+    if myconn.sock is not None:
+        myconn.sock.close()
+        print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count

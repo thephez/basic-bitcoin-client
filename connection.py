@@ -23,15 +23,27 @@ class Connection():
 
     def get_peer_IP(self):
         socket_timeout = 3
+        peerinfo = None
 
-        try:
-            peerinfo = socket.getaddrinfo('seed.bitcoinstats.com', 80)
-            #peerInfo = socket.getaddrinfo('bitseed.xf2.org', 80)
-        except:
-            logger.warning('Unexpected error: %s', sys.exc_info())
-            sys.exit('Program exiting - No peers found')
-            #pass
+        seedlist = ['seed.bitcoinstats.com', 'bitseed.xf2.org', 'seed.bitcoin.sipa.be', 'dnsseed.bluematt.me', 'dnsseed.bitcoin.dashjr.org']
+        random.shuffle(seedlist)
 
+        for seed in seedlist:
+            logger.debug('Looking for peers on: %s', seed)
+
+            try:
+                peerinfo = socket.getaddrinfo(seed, 80)
+                logger.info('Peer(s) found via: %s', seed)
+                break
+
+            except:
+                logger.warning('Unexpected error: %s', sys.exc_info())
+                continue
+
+        if peerinfo == None:
+            logger.debug('No peers found')
+            raise(PeerNotFound)
+            #sys.exit('Program exiting - No peers found')
 
         # Randomly order list so the same node isn't picked every time
         random.shuffle(peerinfo)
@@ -67,7 +79,6 @@ class Connection():
                 self.sock.close()
 
         raise(PeerNotFound)
-        return -1
 
     def open(self):
 
@@ -88,4 +99,8 @@ class Connection():
 
     def close(self):
 
-        self.sock.close()
+        try:
+            if self.sock is not None:
+                self.sock.close()
+        except:
+            logger.warning('Unexpected error: %s', sys.exc_info())
