@@ -31,7 +31,7 @@ class Messages():
     def checkMsg(self, data):
         recvmsg = {}
         all_msgs = []
-        logger.debug(hexlify(data))
+        #logger.debug(hexlify(data))
 
         data_len = len(data)
         if data_len < HEADER_LEN:

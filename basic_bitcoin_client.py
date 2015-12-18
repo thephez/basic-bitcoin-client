@@ -181,11 +181,11 @@ class InventoryMessageError(Exception):
 def deserialize_int(data):
     # From Bitnodes
     length = struct.unpack("<B", data.read(1))
-    if length == 0xFD:
+    if length[0] == 0xFD:
         length = struct.unpack("<H", data.read(2))
-    elif length == 0xFE:
+    elif length[0] == 0xFE:
         length = struct.unpack("<I", data.read(4))
-    elif length == 0xFF:
+    elif length[0] == 0xFF:
         length = struct.unpack("<Q", data.read(8))
     return length
 
@@ -247,7 +247,7 @@ def decodeInvMessage(payload):
 
     msg['inventory'] = decodeData.read((36 * msg['count'][0]))
 
-    logger.debug('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
+    logger.info('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
 
     decodeInventoryMsg = StringIO(msg['inventory'])
 
@@ -279,6 +279,36 @@ def getInventoryType(inventorytype):
     return typedesc
 
 
+def decodeAddrMessage(payload):
+
+    msg = {}
+    addr = []
+    decodeData = StringIO(payload)
+
+    msg['count'] = deserialize_int(decodeData)
+    # Make sure inventory message length matches count properly
+
+    msg['addr'] = decodeData.read((30 * msg['count'][0]))
+
+    logger.info('Address Message(s) - ' + 'Count: %d', msg['count'][0])
+
+    decodeAddrMessage = StringIO(msg['addr'])
+
+    for x in range(0, msg['count'][0]):
+
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(struct.unpack("<I", decodeAddrMessage.read(4))[0]))
+        services = decodeAddrMessage.read(8)
+
+        ip = socket.inet_ntoa(decodeAddrMessage.read(16)[-4::]) #[::-1]
+        port = struct.unpack(">H", decodeAddrMessage.read(2))[0] #[::-1]
+
+        addr.append({'timestamp': timestamp, 'services': services, 'addr': ip, 'port': port})
+        logger.debug('Address Payload (%04d' % x + ')\tAddr: %s', ip + '\t\tPort: ' + str(port))
+
+    #print(addr)
+    return msg, addr
+
+
 myconn = Connection()
 
 recv_count = 0
@@ -307,14 +337,15 @@ try:
             data = sock.recv(SOCKET_BUFSIZE)# + incompletedata
 
         amount_received += len(data)
-
+        logger.info('\n')
         logger.info('Time = ' + time.strftime("%I:%M:%S") + '\tMessage received - %s', total_recv_count)
 
         try:
             msgs, incompletedata = mesg.checkMsg(incompletedata + data)
-            logger.debug('Incomplete data length: %d - %s', len(incompletedata), hexlify(incompletedata))
-            if MAGIC_NUMBER not in incompletedata:
-                logger.debug(' MAGIC NUMBER NOT FOUND IN INCOMPLETE DATA!')
+            if len(incompletedata) > 0:
+                logger.debug('Incomplete data length: %d - %s', len(incompletedata), hexlify(incompletedata))
+                if MAGIC_NUMBER not in incompletedata:
+                    logger.debug(' MAGIC NUMBER NOT FOUND IN INCOMPLETE DATA!')
 
         except HeaderTooShortError:
             logger.warning('Header too short!: %s', sys.exc_info())
@@ -342,9 +373,11 @@ try:
                 logger.debug('Verack received, sending \'getAddr\'')
                 sock.sendall(mesg.getAddrMsg())
             elif msg['command'] == "addr":
-                logger.debug('addr received')
+                logger.debug('addr received - Addresses: ')
+                decodeAddrMessage(msg['payload'])
             elif msg['command'] == "getaddr":
                 logger.debug('getaddr received')
+
             elif msg['command'] == "getdata":
                 logger.debug(msg['command'] + ' received')
             elif msg['command'] == "getheaders":
@@ -370,7 +403,7 @@ try:
             print >>sys.stderr, '\nsending "%s"' % message
             sock.sendall(message)
             recv_count = 0
-           
+
     #print >>sys.stderr, 'received "%s"' % data
 
 except:
