@@ -154,7 +154,7 @@ from messages import *
 logging.basicConfig(format='%(funcName)s:%(levelname)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
-#logger.setLevel(logging.INFO)
+logger.setLevel(logging.INFO)
 
 MIN_PROTOCOL_VERSION = 70001
 PROTOCOL_VERSION = 70002
@@ -162,9 +162,9 @@ SERVICES = 0  # set to 1 for NODE_NETWORK
 USER_AGENT = "/pz:0.1/"
 HEIGHT = 347706
 RELAY = 0  # set to 1 to receive all txs
-DEFAULT_PORT = 8333
+#DEFAULT_PORT = 8333
 
-SOCKET_BUFSIZE = 4096
+#SOCKET_BUFSIZE = 4096
 PING_FREQUENCY = 100
 HEADER_LEN = 24
 
@@ -298,14 +298,35 @@ try:
     amount_received = 0
     amount_expected = SOCKET_BUFSIZE #len(message)
 
+    incompletedata = ''
+
     while 1 == 1:
-        data = sock.recv(SOCKET_BUFSIZE)
+        if len(incompletedata) == 0:
+            data = sock.recv(SOCKET_BUFSIZE)
+        else:
+            data = sock.recv(SOCKET_BUFSIZE)# + incompletedata
+
         amount_received += len(data)
 
-        logger.info('Time = ' + time.strftime("%I:%M:%S"))
-        logger.info('Message received - %s', total_recv_count)
+        logger.info('Time = ' + time.strftime("%I:%M:%S") + '\tMessage received - %s', total_recv_count)
 
-        msgs = mesg.checkMsg(data)
+        try:
+            msgs, incompletedata = mesg.checkMsg(incompletedata + data)
+            logger.debug('Incomplete data length: %d - %s', len(incompletedata), hexlify(incompletedata))
+            if MAGIC_NUMBER not in incompletedata:
+                logger.debug(' MAGIC NUMBER NOT FOUND IN INCOMPLETE DATA!')
+
+        except HeaderTooShortError:
+            logger.warning('Header too short!: %s', sys.exc_info())
+            continue
+
+        except PayloadTooShortError:
+            logger.warning('Payload too short!: %s', sys.exc_info())
+            continue
+
+        except:
+            logger.warning('Unexpected error: %s', sys.exc_info())
+            continue
 
         #mesg.printMsgs(msgs)
 
@@ -319,7 +340,7 @@ try:
                 sock.sendall(message)
             elif msg['command'] == "verack":
                 logger.debug('Verack received, sending \'getAddr\'')
-                #sock.sendall(mesg.getAddrMsg())
+                sock.sendall(mesg.getAddrMsg())
             elif msg['command'] == "addr":
                 logger.debug('addr received')
             elif msg['command'] == "getaddr":
@@ -338,7 +359,7 @@ try:
                 logger.info('\n\n\n\n\n------------------------------- Block Mined -------------------------------\n\n\n\n\n')
                 logger.debug(msg)
             else:
-                logger.info('------------------------------------------------------------------------------------------------------------------- ' + msg['command'] + ' received')
+                logger.debug('----------------- ' + msg['command'] + ' received')
 
         recv_count = recv_count + 1
         total_recv_count = total_recv_count + 1
