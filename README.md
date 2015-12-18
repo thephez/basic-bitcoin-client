@@ -1,1 +1,1 @@
-A basic Python bitcoin client that will connect to the bitcoin network and monitor transactions/blocks.  Primarily a tool for learning more about the inner workings of bitcoin and gaining some Python knowledge.
+A basic Python bitcoin client (Python 2.7 - not currently Python 3 compatible) that will connect to the bitcoin network and monitor transactions/blocks.  Primarily a tool for learning more about the inner workings of bitcoin and gaining some Python knowledge.
