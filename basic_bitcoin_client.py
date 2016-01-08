@@ -150,8 +150,9 @@ from binascii import hexlify, unhexlify
 
 from connection import *
 from messages import *
+from database import *
 
-logging.basicConfig(format='%(funcName)s:%(levelname)s:%(message)s', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s', level=logging.DEBUG)
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 logger.setLevel(logging.INFO)
@@ -251,6 +252,8 @@ def decodeInvMessage(payload):
 
     decodeInventoryMsg = StringIO(msg['inventory'])
 
+    db = MyDB()
+
     for x in range(0, msg['count'][0]):
 
         invType = getInventoryType(struct.unpack("<I", decodeInventoryMsg.read(4))[0])
@@ -259,9 +262,26 @@ def decodeInvMessage(payload):
         inventory.append({'type': invType, 'hash': invHash})
         if invType == 'Msg_Block':
             logger.info('   Inventory Payload - Block Found ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
+            mesg.getData(invHash)
+            writeinv('blockhash.txt', invType, invHash)
         logger.debug('   Inventory Payload - ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
 
+        #writeinv('txhash.txt', invType, invHash)
+
+        if invType == 'Msg_Block':
+            db.insert('blocks', 'hashMerkle', hexlify(invHash))
+        elif invType == 'Msg_Tx':
+            #db.insert('transactions', 'txHash', hexlify(invHash))
+            pass
+
     return msg
+
+
+def writeinv(filename, invType, invHash):
+    with open(filename, 'a') as f:
+        f.write(invType + ':' + hexlify(invHash) + '\t' + time.asctime() + '\n')
+
+    return
 
 
 def getInventoryType(inventorytype):
