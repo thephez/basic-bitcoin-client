@@ -252,7 +252,7 @@ def decodeInvMessage(payload):
 
     decodeInventoryMsg = StringIO(msg['inventory'])
 
-    db = MyDB()
+    db = MyDB('blockchain')
 
     for x in range(0, msg['count'][0]):
 
@@ -262,16 +262,19 @@ def decodeInvMessage(payload):
         inventory.append({'type': invType, 'hash': invHash})
         if invType == 'Msg_Block':
             logger.info('   Inventory Payload - Block Found ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
-            mesg.getData(invHash)
+            #mesg.getData(invHash)
             writeinv('blockhash.txt', invType, invHash)
+            getblockmsg = mesg.getBlocks(4, 1, hexlify(invHash), 0)
+            sock.sendall(getblockmsg)
+            #Send block message request
         logger.debug('   Inventory Payload - ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
 
         #writeinv('txhash.txt', invType, invHash)
 
         if invType == 'Msg_Block':
-            db.insert('blocks', 'hashMerkle', hexlify(invHash))
+            db.insert('blocks', 'hashMerkle', '\'{}\''.format(hexlify(invHash)))
         elif invType == 'Msg_Tx':
-            #db.insert('transactions', 'txHash', hexlify(invHash))
+            #db.insert('transactions', 'txHash', '\'{}\''.format(hexlify(invHash)))
             pass
 
     return msg
@@ -392,6 +395,11 @@ try:
             elif msg['command'] == "verack":
                 logger.debug('Verack received, sending \'getAddr\'')
                 sock.sendall(mesg.getAddrMsg())
+
+                #getblockmsg = mesg.getBlocks(4, 1, '000000000000000000083be09ac9bcdd3313f0324b7105473255c95c8a33d514', 0)
+                #sock.sendall(getblockmsg)
+
+
             elif msg['command'] == "addr":
                 logger.debug('addr received - Addresses: ')
                 decodeAddrMessage(msg['payload'])
@@ -426,8 +434,8 @@ try:
 
     #print >>sys.stderr, 'received "%s"' % data
 
-except:
-    logger.warning('Unexpected error: %s', sys.exc_info())
+#except:
+#    logger.warning('Unexpected error: %s', sys.exc_info())
 
 finally:
     if myconn.sock is not None:

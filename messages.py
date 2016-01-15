@@ -155,6 +155,29 @@ class Messages():
 
         return self.makeMessage(MAGIC_NUMBER, 'getaddr', payload)
 
+    def getData(self, invHash):
+        logger.info('getData')
+        return -1
+
+    def getBlocks(self, version, hashcount, locatehash, stophash):
+        logger.info('getBlocks')
+
+        version = struct.pack("<I", version)
+        hashcount = chr(1)
+        locatehash = unhexlify(locatehash)
+        if stophash == 0:
+            stophash = '0000000000000000000000000000000000000000000000000000000000000000'
+
+        stophash = unhexlify(stophash)
+
+        print('Version: {}\tCount: {}\t Start Hash: {}\tStop Hash: {}'.format(version, hashcount, locatehash, stophash))
+        payload = str(version) + str(hashcount) + locatehash + str(stophash)
+        print(hexlify(payload))
+        print('{}'.format(payload))
+        msg = self.makeMessage(MAGIC_NUMBER, 'getblocks', payload)
+        print('{}\n{}'.format(msg, hexlify(msg)))
+        return msg
+
     def printMsgs(self, message):
         print('printMsgs - ' + 'length of msgs = ' + str(len(message)))
         for index in range(0, len(message)):
