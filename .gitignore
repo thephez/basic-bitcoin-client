@@ -1,3 +1,4 @@
 *.pyc
 txhash.txt
 blockhash.txt
+*.sqlite
