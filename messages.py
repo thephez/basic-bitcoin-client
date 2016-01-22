@@ -155,9 +155,15 @@ class Messages():
 
         return self.makeMessage(MAGIC_NUMBER, 'getaddr', payload)
 
-    def getData(self, invHash):
-        logger.info('getData')
-        return -1
+    def getData(self, count, invMsg):
+        logger.debug('count = {}.\tinvMsg {}'.format(count, hexlify(invMsg)))
+        count = self.serialize_int(count)
+
+        payload = str(count) + str(invMsg) #str(invMsg[0:4]) + str(invMsg[4:])
+        msg = self.makeMessage(MAGIC_NUMBER, 'getdata', payload)
+        logger.debug('GetData message: {}\n{}'.format(msg, hexlify(msg)))
+
+        return msg
 
     def getBlocks(self, version, hashcount, locatehash, stophash):
         logger.info('getBlocks')
@@ -182,3 +188,14 @@ class Messages():
         print('printMsgs - ' + 'length of msgs = ' + str(len(message)))
         for index in range(0, len(message)):
             print('printMsgs - ' + str(index) + ' ' + str(message[index]))
+
+    def serialize_int(self, value):
+
+        if value < 0xFD:
+            return struct.pack("<B", value)
+        elif value <= 0xFFFF:
+            return chr(0xFD) + struct.pack("<H", value) # 0xFD + length as uint_16
+        elif value < 0xFFFFFFFF:
+            return chr(0xFE) + struct.pack("<I", value) # 0xFE + length as uint_32
+        else:
+            return chr(0xFF) + struct.pack("<Q", value) # 0xFF + length as uint_64

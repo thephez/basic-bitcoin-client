@@ -248,25 +248,29 @@ def decodeInvMessage(payload):
 
     msg['inventory'] = decodeData.read((36 * msg['count'][0]))
 
-    logger.info('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
+    logger.debug('Inventory Message(s) - ' + 'Count: %s', msg['count'][0])
 
     decodeInventoryMsg = StringIO(msg['inventory'])
+
+    #getdatamsg = mesg.getData(msg['count'][0], msg['inventory'])
+    #sock.sendall(getdatamsg)
 
     db = MyDB('blockchain')
 
     for x in range(0, msg['count'][0]):
 
-        invType = getInventoryType(struct.unpack("<I", decodeInventoryMsg.read(4))[0])
+        invTypeCode = decodeInventoryMsg.read(4)
+        invType = getInventoryType(struct.unpack("<I", invTypeCode)[0])
         invHash = decodeInventoryMsg.read(32)[::-1]
 
         inventory.append({'type': invType, 'hash': invHash})
         if invType == 'Msg_Block':
             logger.info('   Inventory Payload - Block Found ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
-            #mesg.getData(invHash)
             writeinv('blockhash.txt', invType, invHash)
-            getblockmsg = mesg.getBlocks(4, 1, hexlify(invHash), 0)
-            sock.sendall(getblockmsg)
+            getdatamsg = mesg.getData(1, str(invTypeCode) + str(invHash[::-1]))
             #Send block message request
+            sock.sendall(getdatamsg)
+
         logger.debug('   Inventory Payload - ' + 'Type: %s' + '      Hash: %s', inventory[x]['type'], hexlify(inventory[x]['hash']))
 
         #writeinv('txhash.txt', invType, invHash)
@@ -398,8 +402,6 @@ try:
 
                 #getblockmsg = mesg.getBlocks(4, 1, '000000000000000000083be09ac9bcdd3313f0324b7105473255c95c8a33d514', 0)
                 #sock.sendall(getblockmsg)
-
-
             elif msg['command'] == "addr":
                 logger.debug('addr received - Addresses: ')
                 decodeAddrMessage(msg['payload'])
