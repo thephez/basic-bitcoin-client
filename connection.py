@@ -2,6 +2,7 @@ import sys
 import random
 import socket
 import logging
+import time
 import datetime
 from netaddr import *
 from cStringIO import StringIO
@@ -26,24 +27,29 @@ class Connection():
         peerinfo = None
 
         seedlist = ['seed.bitcoinstats.com', 'bitseed.xf2.org', 'seed.bitcoin.sipa.be', 'dnsseed.bluematt.me', 'dnsseed.bitcoin.dashjr.org']
-        random.shuffle(seedlist)
 
-        for seed in seedlist:
-            logger.debug('Looking for peers on: %s', seed)
+        while True:
+            random.shuffle(seedlist)
 
-            try:
-                peerinfo = socket.getaddrinfo(seed, 80)
-                logger.info('Peer(s) found via: %s', seed)
-                break
+            for seed in seedlist:
+                logger.debug('Looking for peers on: %s', seed)
 
-            except:
-                logger.warning('Unexpected error: %s', sys.exc_info())
-                continue
+                try:
+                    peerinfo = socket.getaddrinfo(seed, 80)
+                    logger.info('Peer(s) found via: %s', seed)
+                    return self.getpeeronseed(peerinfo, socket_timeout)
+                    break
 
-        if peerinfo == None:
-            logger.debug('No peers found')
-            raise(PeerNotFound)
-            #sys.exit('Program exiting - No peers found')
+                except:
+                    logger.warning('Unexpected error: %s', sys.exc_info())
+                    continue
+
+            logger.info('No peers found.  Retrying...')
+            time.sleep(10)
+
+        raise(PeerNotFound)
+
+    def getpeeronseed(self, peerinfo, socket_timeout):
 
         # Randomly order list so the same node isn't picked every time
         random.shuffle(peerinfo)
