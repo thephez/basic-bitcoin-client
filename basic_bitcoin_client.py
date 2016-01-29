@@ -153,6 +153,7 @@ import os
 from connection import *
 from messages import *
 from database import *
+from blocks import *
 
 LOGFILEDIR = '.'
 LOGFILENAME = os.path.join(LOGFILEDIR, 'log-basic-bitcoin-client.log')
@@ -186,7 +187,6 @@ def configure_logging():
     #logging.basicConfig(format='%(name)s:%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s', level=logging.DEBUG)
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
-    #logger.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s')
 
     # Console logging
@@ -204,7 +204,7 @@ def configure_logging():
     except Exception as e:
         logger.critical('Error accessing log file{}.  Exiting.\n\tException Message: {}'.format(LOGFILENAME, e))
         sys.exit()
-    pass
+    return
 
 def deserialize_int(data):
     # From Bitnodes
@@ -367,6 +367,7 @@ configure_logging()
 logger.info('\n'*2 + '-'*30 + ' Client starting ' + '-'*30)
 
 myconn = Connection()
+block = Blocks()
 
 recv_count = 0
 total_recv_count = 0
@@ -450,7 +451,8 @@ try:
                 sock.sendall(mesg.getPongMsg(msg['payload']))
             elif msg['command'] == "block":
                 logger.info('\n\n\n\n\n------------------------------- Block Mined -------------------------------\n\n\n\n\n')
-                logger.debug(msg)
+                logger.debug('Block: {}'.format(msg))
+                block.parseblock(msg)
             else:
                 logger.debug('----------------- ' + msg['command'] + ' received')
 

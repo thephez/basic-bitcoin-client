@@ -7,3 +7,4 @@ blockhash.txt
 Create Transactions Table.sql
 Create Blocks Tables.sql
 Query blocks.sql
+*.log.*
