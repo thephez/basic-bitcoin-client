@@ -357,7 +357,7 @@ try:
 
     incompletedata = ''
 
-    while 1 == 1:
+    while True:
         if len(incompletedata) == 0:
             data = sock.recv(SOCKET_BUFSIZE)
         else:
