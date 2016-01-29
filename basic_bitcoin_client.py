@@ -143,19 +143,19 @@ import struct #https://docs.python.org/2/library/struct.html#
 import hashlib
 import socket
 import logging
+from logging.handlers import RotatingFileHandler
 import datetime
 from netaddr import *
 from cStringIO import StringIO
 from binascii import hexlify, unhexlify
+import os
 
 from connection import *
 from messages import *
 from database import *
 
-logging.basicConfig(format='%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s', level=logging.DEBUG)
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.INFO)
+LOGFILEDIR = '.'
+LOGFILENAME = os.path.join(LOGFILEDIR, 'log-basic-bitcoin-client.log')
 
 MIN_PROTOCOL_VERSION = 70001
 PROTOCOL_VERSION = 70002
@@ -178,6 +178,33 @@ MSG_FILTERED_BLOCK = 3
 class InventoryMessageError(Exception):
     pass
 
+
+def configure_logging():
+    consolelevel = logging.INFO
+    filelevel = logging.DEBUG
+
+    #logging.basicConfig(format='%(name)s:%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s', level=logging.DEBUG)
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    #logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s')
+
+    # Console logging
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+    ch.setLevel(consolelevel)
+    logger.addHandler(ch)
+
+    # File logging (Rotating)
+    try:
+        rfh = RotatingFileHandler(LOGFILENAME, maxBytes=10000000, backupCount=5)
+        rfh.setFormatter(formatter)
+        rfh.setLevel(filelevel)
+        logger.addHandler(rfh)
+    except Exception as e:
+        logger.critical('Error accessing log file{}.  Exiting.\n\tException Message: {}'.format(LOGFILENAME, e))
+        sys.exit()
+    pass
 
 def deserialize_int(data):
     # From Bitnodes
@@ -336,6 +363,9 @@ def decodeAddrMessage(payload):
     return msg, addr
 
 
+configure_logging()
+logger.info('\n'*2 + '-'*30 + ' Client starting ' + '-'*30)
+
 myconn = Connection()
 
 recv_count = 0
@@ -443,3 +473,4 @@ finally:
     if myconn.sock is not None:
         myconn.sock.close()
         print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count
+    logger.info('-'*30 + ' Client stopping ' + '-'*30)

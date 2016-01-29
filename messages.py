@@ -11,8 +11,7 @@ from binascii import hexlify, unhexlify
 MAGIC_NUMBER = "\xF9\xBE\xB4\xD9"
 HEADER_LEN = 24
 
-logger = logging.getLogger("logger")
-
+logger = logging.getLogger()
 
 class HeaderTooShortError(Exception):
     pass

@@ -11,7 +11,7 @@ from binascii import hexlify, unhexlify
 DEFAULT_PORT = 8333
 SOCKET_BUFSIZE = 4096
 
-logger = logging.getLogger("logger")
+logger = logging.getLogger()
 
 class PeerNotFound(Exception):
     pass

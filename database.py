@@ -2,11 +2,13 @@ import pyodbc
 import sqlite3
 import logging
 
-logging.basicConfig(format='%(asctime)s:%(levelname)s:%(module)s:%(funcName)s:%(message)s', level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+#logging.basicConfig(format='%(asctime)s:%(levelname)s:%(module)s:%(funcName)s:%(message)s', level=logging.DEBUG)
+#logger = logging.getLogger(__name__)
 #logger = logging.getLogger("logger")
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 #logger.setLevel(logging.INFO)
+
+logger = logging.getLogger()
 
 class MyDB(object):
 
