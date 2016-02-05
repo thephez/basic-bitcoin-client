@@ -451,7 +451,7 @@ try:
                 logger.info('Ping received, sending \'pong\'')
                 sock.sendall(mesg.getPongMsg(msg['payload']))
             elif msg['command'] == "block":
-                logger.info('\n\n\n\n\n------------------------------- Block Mined -------------------------------\n\n\n\n\n')
+                logger.info('\n' + '-'*30 + ' Block Mined ' + '-'*30 + '\n')
                 logger.debug('Block: {}'.format(msg))
                 blockinfo, txdata = block.parseblock(msg)
             else:
