@@ -108,6 +108,7 @@ Reference: https://en.bitcoin.it/wiki/Protocol_specification
     [..] TX_COUNT               variable integer
     [..] TX                     multiple of TX_COUNT
         [..] TX                 see TX_PAYLOAD
+        Note: First TX is the Coinbase
 
     [---GETBLOCKS_PAYLOAD---]
     [ 4] VERSION                <I                                  uint32_t
@@ -206,6 +207,7 @@ def configure_logging():
         sys.exit()
     return
 
+
 def deserialize_int(data):
     # From Bitnodes
     length = struct.unpack("<B", data.read(1))
@@ -222,21 +224,21 @@ def decodeVersion(payload):
 
     msg = {}
     decodeData = StringIO(payload)
-    
+
     msg['version'] = struct.unpack("<i", decodeData.read(4))
     msg['services'] = struct.unpack("<Q", decodeData.read(8))
     msg['timestamp'] = struct.unpack("<Q", decodeData.read(8))
-    
+
     msg['addr_recv_services'] = struct.unpack("<Q", decodeData.read(8))
     msg['addr_recv_ipv6'] = decodeData.read(12)
     msg['addr_recv_ipv4'] = decodeData.read(4)
     msg['addr_recv_port'] = struct.unpack(">H", decodeData.read(2))
-    
+
     msg['addr_from_services'] = struct.unpack("<Q", decodeData.read(8))
     msg['addr_from_ipv6'] = decodeData.read(12)
     msg['addr_from_ipv4'] = decodeData.read(4)
     msg['addr_from_port'] = struct.unpack(">H", decodeData.read(2))
-    
+
     msg['nonce'] = struct.unpack("<Q", decodeData.read(8))
 
     # Need to add user agent, height, and relay
@@ -260,7 +262,7 @@ def decodeVersion(payload):
     logger.debug('Addr Port (Recv): %s', msg['addr_recv_port'][0])
 
     logger.debug('Nonce : %s', msg['nonce'][0])
-    
+
     return msg
 
 
