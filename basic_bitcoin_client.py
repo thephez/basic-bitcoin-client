@@ -182,7 +182,7 @@ class InventoryMessageError(Exception):
 
 
 def configure_logging():
-    consolelevel = logging.INFO
+    consolelevel = logging.WARNING
     filelevel = logging.INFO
 
     #logging.basicConfig(format='%(name)s:%(asctime)s:%(levelname)s:%(funcName)s:%(module)s:%(message)s', level=logging.DEBUG)
@@ -283,8 +283,6 @@ def decodeInvMessage(payload):
 
     #getdatamsg = mesg.getData(msg['count'][0], msg['inventory'])
     #sock.sendall(getdatamsg)
-
-    #db = MyDB('blockchain')
 
     for x in range(0, msg['count'][0]):
 

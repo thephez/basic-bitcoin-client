@@ -34,7 +34,7 @@ class Messages():
 
         data_len = len(data)
         if data_len < HEADER_LEN:
-            logger.debug('Header too short. Received data: {}'.format(data))
+            logger.error('Header too short. Received data: {}'.format(data))
             raise HeaderTooShortError("got {} of {} bytes".format(
                 data_len, HEADER_LEN))
 
@@ -48,7 +48,7 @@ class Messages():
             remainingdatalength = len(data) - dataIO.tell()
 
             if len(data) - dataIO.tell() < HEADER_LEN:
-                logger.debug('Header too short. Received data: {}'.format(data))
+                logger.error('Header too short. Received data: {}'.format(data))
                 raise HeaderTooShortError("Received {} of {} bytes".format(
                     data_len, HEADER_LEN))
 
@@ -62,8 +62,8 @@ class Messages():
                 recvmsg['length'] = struct.unpack("<I", dataIO.read(4))[0]
 
                 if recvmsg['length'] > (remainingdatalength - HEADER_LEN):
-                    logger.info('Incomplete Payload - need to wait for more data: %d remaining', (recvmsg['length'] + HEADER_LEN)- remainingdatalength)
-                    logger.info('data_len: %d, dataIO.tell(): %d, recvmsg[length]: %d' % (data_len, dataIO.tell(), recvmsg['length']))
+                    logger.warning('Incomplete Payload - need to wait for more data: %d remaining', (recvmsg['length'] + HEADER_LEN)- remainingdatalength)
+                    logger.warning('data_len: %d, dataIO.tell(): %d, recvmsg[length]: %d' % (data_len, dataIO.tell(), recvmsg['length']))
                     #logger.debug('Incomplete Payload.  Received data: {}'.format(data))
                     # The data[x:x] items need to be modified in case the short message is in the middle of a list of messages (may not start at [0:4]
                     return(all_msgs, data[0:4] + data[4:16] + data[16:20] + dataIO.read(data_len - dataIO.tell()))
@@ -80,7 +80,7 @@ class Messages():
                     checksum = hashlib.sha256(hashlib.sha256(recvmsg['payload']).digest()).digest()[0:4]
 
                     if checksum != recvmsg['checksum']:
-                        logger.debug('Checksum Error. Based on hash of received payload: {}'.format(recvmsg['payload']))
+                        logger.error('Checksum Error. Based on hash of received payload: {}'.format(recvmsg['payload']))
                         raise PayloadChecksumError("got {} instead of {} ".format(
                             hexlify(checksum), hexlify(recvmsg['checksum'])))
 
