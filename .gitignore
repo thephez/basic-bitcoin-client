@@ -7,5 +7,6 @@ blockhash.txt
 Create Transactions Table.sql
 Create Blocks Tables.sql
 Query blocks.sql
+misc-nonvc/*
 *.log.*
 *.log
