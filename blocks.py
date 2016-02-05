@@ -1,6 +1,10 @@
 import logging
 from binascii import hexlify, unhexlify
 import struct
+import util
+import time
+from cStringIO import StringIO
+import database
 
 logger = logging.getLogger()
 
@@ -10,8 +14,14 @@ class Blocks():
 
 
     def parseblock(self, blockdata):
+        '''
+        Parse block data to get version, hashes, etc. and return info as dict along with the Tx Data separately
+        :param blockdata:
+        :return:
+        '''
         #logger.info('Blockdata: {}'.format(blockdata))
-        block = {}
+        blockinfo = {}
+        utility = util.Util()
 
         '''
         [---BLOCK_PAYLOAD---]
@@ -26,17 +36,71 @@ class Blocks():
             [..] TX                 see TX_PAYLOAD
         '''
 
-        block['version'] = hexlify(blockdata['payload'][0:4])
-        prevhash = hexlify(blockdata['payload'][35:3:-1])
-        merkleroot = hexlify(blockdata['payload'][67:35:-1])
-        timestamp = hexlify(blockdata['payload'][68:72])
-        bits = struct.unpack('<I', blockdata['payload'][72:76])[0]
-        nonce = struct.unpack('<I', blockdata['payload'][76:80])[0]
-        #varint
-        txcount = struct.unpack('<I', blockdata['payload'][80:84])[0]     #hexlify(blockdata['payload'][80:82])
+        blockinfo['length'] = blockdata['length']
 
-        txmultiple = hexlify(blockdata['payload'][82:84])
+        decodeData = StringIO(blockdata['payload'])
 
-        logger.info('\nVersion: {}\nPrevious Hash: {}\nMerkle Root:{}\nTimestamp: {}\nBits/Diff (hex): {:x}\nNonce: {}\nTransaction Count: {}\nTransaction Multiple: {}'.format(block['version'], prevhash, merkleroot, timestamp, bits, nonce, txcount, txmultiple))
+        blockinfo['version'] = struct.unpack('<I', decodeData.read(4))[0]
+        blockinfo['prevhash'] = hexlify(decodeData.read(32)[::-1])
+        blockinfo['merkleroot'] = hexlify(decodeData.read(32)[::-1])
+        timestamp = struct.unpack('<I', decodeData.read(4))[0]
+        blockinfo['timestamp'] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(timestamp))
+        blockinfo['difficulty'] = struct.unpack('<I', decodeData.read(4))[0]
+        blockinfo['nonce'] = struct.unpack('<I', decodeData.read(4))[0]
+        blockinfo['txcount'] = utility.deserialize_int(decodeData)[0]
 
-        pass
+        txdata = decodeData.read()
+
+        logger.info('Block Info\n\tVersion: {}\n\t'
+                    'Previous Hash: {}\n\t'
+                    'Merkle Root:{}\n\t'
+                    'Timestamp: {}\n\t'
+                    'Difficulty (hex): {:x}\n\t'
+                    'Nonce: {}\n\t'
+                    'Transaction Count: {}'.format(blockinfo['version'],
+                                                      blockinfo['prevhash'],
+                                                      blockinfo['merkleroot'],
+                                                      blockinfo['timestamp'],
+                                                      blockinfo['difficulty'],
+                                                      blockinfo['nonce'],
+                                                      blockinfo['txcount']))
+
+        self.logblockdata(blockinfo)
+
+        return blockinfo, txdata
+
+
+    def logblockdata(self, blockinfo):
+        '''
+        Write block header info (version, hashes, etc.) to blocks table in database
+
+        :param blockinfo:
+        :return:
+        '''
+        db = database.MyDB('blockchain')
+        db.insert('blocks',
+                  'version, '
+                  'hash_prev, '
+                  'hash_merkle, '
+                  'time, '
+                  'difficulty, '
+                  'nonce, '
+                  'size, '
+                  'tx_count', '\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\''.format(blockinfo['version'],
+                                          blockinfo['prevhash'],
+                                          blockinfo['merkleroot'],
+                                          blockinfo['timestamp'],
+                                          blockinfo['difficulty'],
+                                          blockinfo['nonce'],
+                                          blockinfo['length'],
+                                          blockinfo['txcount']
+                                          )
+                  )
+        return
+
+if __name__ == '__main__':
+
+    # Enable logging if running file directly
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(module)s:%(funcName)s:%(message)s', level=logging.DEBUG)
+    blk = Blocks()
+

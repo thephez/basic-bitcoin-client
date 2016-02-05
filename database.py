@@ -51,12 +51,13 @@ class MyDB(object):
             self._db_connection.execute('''CREATE TABLE IF NOT EXISTS BLOCKS
                 (ID INTEGER PRIMARY KEY     NOT NULL,
                 version        INT,
-                hashPrev       CHAR(64),
-                hashMerkle     CHAR(64),
-                Time           TEXT
-                Difficulty     INT,
-                Nonce          INT,
-                size           INT
+                hash_prev       CHAR(64),
+                hash_merkle     CHAR(64),
+                time           TEXT,
+                difficulty     INT,
+                nonce          INT,
+                size           INT,
+                tx_count        INT
                    );''')
 
         elif tablename.upper() == 'TRANSACTIONS':
