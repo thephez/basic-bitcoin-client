@@ -155,6 +155,7 @@ from connection import *
 from messages import *
 from database import *
 from blocks import *
+from transactions import *
 
 LOGFILEDIR = '.'
 LOGFILENAME = os.path.join(LOGFILEDIR, 'log-basic-bitcoin-client.log')
@@ -369,7 +370,7 @@ logger.info('\n'*2 + '-'*30 + ' Client starting ' + '-'*30)
 
 myconn = Connection()
 block = Blocks()
-
+tx = transactions.Transactions()
 recv_count = 0
 total_recv_count = 0
 
@@ -454,6 +455,7 @@ try:
                 logger.info('\n' + '-'*30 + ' Block Mined ' + '-'*30 + '\n')
                 logger.debug('Block: {}'.format(msg))
                 blockinfo, txdata = block.parseblock(msg)
+                tx.parsetx(txdata, blockinfo['txcount'])
             else:
                 logger.debug('----------------- ' + msg['command'] + ' received')
 
