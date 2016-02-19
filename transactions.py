@@ -82,7 +82,7 @@ class Transactions():
             logger.debug('Tx Out Count: {}'.format(txdetails['tx_out_count']))
             for tx_output in range(txdetails['tx_out_count']):
                 txdetails['output_value_{}'.format(tx_output)] = struct.unpack('<q', decodeData.read(8))[0] # In Satoshis
-                #value = value / 10**8
+                txdetails['output_value_{}'.format(tx_output)] = (txdetails['output_value_{}'.format(tx_output)] / 10**8) #value = (value / 10**8)
                 txdetails['output_script_length_{}'.format(tx_output)] = utility.deserialize_int(decodeData)[0]
                 txdetails['output_script_{}'.format(tx_output)] = hexlify(decodeData.read(txdetails['output_script_length_{}'.format(tx_output)]))
 
