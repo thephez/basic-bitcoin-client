@@ -71,6 +71,9 @@ class Transactions():
                 txdetails['input_prev_index_{}'.format(tx_input)] = struct.unpack('<I', decodeData.read(4))[0]
                 txdetails['input_script_length_{}'.format(tx_input)] = utility.deserialize_int(decodeData)[0]
                 txdetails['input_script_{}'.format(tx_input)] = hexlify(decodeData.read(txdetails['input_script_length_{}'.format(tx_input)]))
+
+                # Parse out Opcodes, etc.
+
                 txdetails['input_sequence_{}'.format(tx_input)] = struct.unpack('<I', decodeData.read(4))[0]
 
             txdetails['tx_out_count'] = utility.deserialize_int(decodeData)[0]
@@ -83,18 +86,12 @@ class Transactions():
                 txdetails['output_script_length_{}'.format(tx_output)] = utility.deserialize_int(decodeData)[0]
                 txdetails['output_script_{}'.format(tx_output)] = hexlify(decodeData.read(txdetails['output_script_length_{}'.format(tx_output)]))
 
+                # Parse out Opcodes, etc
+
             txdetails['lock_time'] = struct.unpack('<I', decodeData.read(4))[0]
-
-            #print(txdetails)
-
-            #if txnum > 10:
-            #    sys.exit()
-
             txinfo.append(txdetails)
 
-        #logger.info(pprint.pformat(txinfo))
-        pprint.pprint(txinfo[0])
-        pprint.pprint(txinfo[99])
+        logger.info(pprint.pformat(txinfo))
 
         return txinfo
 
