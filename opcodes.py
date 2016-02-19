@@ -36,7 +36,7 @@ __all__ = ['DISABLED', 'OPCODE_NAMES', 'OP_0', 'OP_0NOTEQUAL', 'OP_1', 'OP_10',
            'OP_HASH160', 'OP_HASH256', 'OP_IF', 'OP_IFDUP', 'OP_INVALIDOPCODE',
            'OP_INVERT', 'OP_LEFT', 'OP_LESSTHAN', 'OP_LESSTHANOREQUAL',
            'OP_LSHIFT', 'OP_MAX', 'OP_MIN', 'OP_MOD', 'OP_MUL', 'OP_NEGATE',
-           'OP_NIP', 'OP_NOP', 'OP_NOP1', 'OP_NOP10', 'OP_NOP2', 'OP_NOP3',
+           'OP_NIP', 'OP_NOP', 'OP_NOP1', 'OP_NOP10', 'OP_CHECKLOCKTIMEVERIFY', 'OP_NOP3',
            'OP_NOP4', 'OP_NOP5', 'OP_NOP6', 'OP_NOP7', 'OP_NOP8', 'OP_NOP9',
            'OP_NOT', 'OP_NOTIF', 'OP_NUMEQUAL', 'OP_NUMEQUALVERIFY',
            'OP_NUMNOTEQUAL', 'OP_OR', 'OP_OVER', 'OP_PICK', 'OP_PUBKEY',
@@ -354,6 +354,22 @@ OP_CHECKMULTISIGVERIFY   = 0xaf
 
 
 ###################
+# Locktime
+
+# Previously OP_NOP2
+# Marks transaction as invalid if the top stack item is greater than the
+# transaction's nLockTime field, otherwise script evaluation continues as
+# though an OP_NOP was executed. Transaction is also invalid if
+#   1. the stack is empty; or
+#   2. the top stack item is negative; or
+#   3. the top stack item is greater than or equal to 500000000 while the
+#       transaction's nLockTime field is less than 500000000, or vice versa; or
+#   4. the input's nSequence field is equal to 0xffffffff.
+# The precise semantics are described in BIP 0065 (https://en.bitcoin.it/wiki/BIP_0065)
+OP_CHECKLOCKTIMEVERIFY  = 0xb1
+
+
+###################
 # Pseudo-words
 
 # Represents a public key hashed with OP_HASH160.
@@ -389,7 +405,7 @@ OP_RESERVED2             = 0x8a
 
 # The word is ignored.
 OP_NOP1                  = 0xb0
-OP_NOP2                  = 0xb1
+#OP_NOP2                  = 0xb1 # OP_NOP2 converted to OP_CHECKLOCKTIMEVERIFY by BIP0065
 OP_NOP3                  = 0xb2
 OP_NOP4                  = 0xb3
 OP_NOP5                  = 0xb4
@@ -404,7 +420,7 @@ DISABLED = frozenset([OP_CAT, OP_SUBSTR, OP_LEFT, OP_RIGHT, OP_INVERT, OP_AND,
                       OP_LSHIFT, OP_RSHIFT])
 
 RESERVED = frozenset([OP_RESERVED, OP_VER, OP_VERIF, OP_VERNOTIF, OP_RESERVED1,
-                      OP_RESERVED2, OP_NOP1, OP_NOP2, OP_NOP3, OP_NOP4,
+                      OP_RESERVED2, OP_NOP1, OP_NOP3, OP_NOP4,
                       OP_NOP5, OP_NOP6, OP_NOP7, OP_NOP8, OP_NOP9, OP_NOP10])
 
 OPCODE_NAMES = ['OP_FALSE', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
@@ -438,7 +454,7 @@ OPCODE_NAMES = ['OP_FALSE', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
                 'OP_MAX', 'OP_WITHIN', 'OP_RIPEMD160', 'OP_SHA1', 'OP_SHA256',
                 'OP_HASH160', 'OP_HASH256', 'OP_CODESEPARATOR', 'OP_CHECKSIG',
                 'OP_CHECKSIGVERIFY', 'OP_CHECKMULTISIG',
-                'OP_CHECKMULTISIGVERIFY', 'OP_NOP1', 'OP_NOP2', 'OP_NOP3',
+                'OP_CHECKMULTISIGVERIFY', 'OP_CHECKLOCKTIMEVERIFY', 'OP_NOP1', 'OP_NOP3',
                 'OP_NOP4', 'OP_NOP5', 'OP_NOP6', 'OP_NOP7', 'OP_NOP8',
                 'OP_NOP9', 'OP_NOP10', None, None, None, None, None, None,
                 None, None, None, None, None, None, None, None, None, None,
