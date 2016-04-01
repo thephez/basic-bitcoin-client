@@ -58,23 +58,47 @@ class Script():
 
     def parsetxoutputscript(self, txnum, tx_output, txinfo, txdetails):
         import opcodes
+        utility = util.Util()
+
+        script = txdetails['output_script_{}'.format(tx_output)]
+        script_structure = []
 
         try:
-            for b1, b2 in zip(txdetails['output_script_{}'.format(tx_output)][0::2], txdetails['output_script_{}'.format(tx_output)][1::2]):
-                #print('{}{}'.format(b1, b2))
+            logger.info('{}.\tOutput Script: {} (length = {})'.format(txnum, script, txdetails['output_script_length_{}'.format(tx_output)]))
+
+            while script:
+
                 try:
-                    opcode = int('{}{}'.format(b1, b2), 16)
+                    opcode = utility.string_to_byte(script[0:2])
                     opcodename = opcodes.get_opcode_name(opcode)
-                    if ((opcodename != 'OP_INVALIDOPCODE' and opcodename != 'N/A')): logger.info('{} ({})\t{}'.format(hex(opcode), opcode, opcodename))
+                    scriptdata = ''
+
+                    if 0 < opcode < 76:
+                        scriptdata = script[2:(opcode * 2) + 2]
+                        #logger.info('{}.\t{} ({})\tRead {} bytes: {}'.format(txnum, hex(opcode), opcode, opcode, scriptdata))
+                        script = script[2 + (opcode * 2)::]
+                    else:
+                        script = script[2::]
+
+                    if opcodename == 'OP_INVALIDOPCODE':
+                        logger.warning('{} ({}) opcode found.'.format(opcodename, opcode))
+
+                    if scriptdata <> '':
+                        script_structure.append('{}'.format(scriptdata))
+                    else:
+                        script_structure.append(opcodename)
+
                 except:
                     raise
 
+            logger.info('{}.\tOutput Script Structure: {}'.format(txnum, script_structure))
 
             script_pubkey_len = int('0x' + str(txdetails['output_script_{}'.format(tx_output)][0:2]), 16) * 2
             #logger.warning('{}.\tscriptSig pubkey length: {}'.format(tx_input, txdetails['input_script_{}'.format(tx_input)][0:2]))
             script_pubkey_remaining_len = (txdetails['output_script_length_{}'.format(tx_output)] * 2) - script_pubkey_len - 2 # 1 byte indicate length
-            logger.info(str(txdetails['output_script_{}'.format(tx_output)]))
-            logger.info('{}.\toutput script pubkey length: {} (bytes) ({} bytes remaining)'.format(txnum, script_pubkey_len, script_pubkey_remaining_len))
+            #logger.info(str(txdetails['output_script_{}'.format(tx_output)]))
+            #logger.info('{}.\toutput script pubkey length: {} (bytes) ({} bytes remaining)'.format(txnum, script_pubkey_len, script_pubkey_remaining_len))
+            #logger.info('')
 
         except Exception as e:
             #logger.error(txinfo[txnum-2])

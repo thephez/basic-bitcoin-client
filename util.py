@@ -26,3 +26,8 @@ class Util():
             return chr(0xFE) + struct.pack("<I", value) # 0xFE + length as uint_32
         else:
             return chr(0xFF) + struct.pack("<Q", value) # 0xFF + length as uint_64
+
+    def string_to_byte(self, string):
+        byte = int('{}{}'.format(string[0], string[1]), 16)
+
+        return byte
