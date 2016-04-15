@@ -199,7 +199,7 @@ def configure_logging():
 
     # File logging (Rotating)
     try:
-        rfh = RotatingFileHandler(LOGFILENAME, maxBytes=10000000, backupCount=5)
+        rfh = RotatingFileHandler(LOGFILENAME, maxBytes=20000000, backupCount=5)
         rfh.setFormatter(formatter)
         rfh.setLevel(filelevel)
         logger.addHandler(rfh)
@@ -374,108 +374,112 @@ tx = transactions.Transactions()
 recv_count = 0
 total_recv_count = 0
 
-try:
-    # Open Connection
-    sock = myconn.open()
-    mesg = Messages()
+while True:
 
-    # Send data
-    message = mesg.getVersionMsg(myconn.serverIP)
-    print >>sys.stderr, 'Sending "%s"' % message
-    sock.sendall(message)
+    logger.info('Attempting to find peer')
 
-    # Look for the response
-    amount_received = 0
-    amount_expected = SOCKET_BUFSIZE #len(message)
+    try:
+        # Open Connection
+        sock = myconn.open()
+        mesg = Messages()
 
-    incompletedata = ''
+        # Send data
+        message = mesg.getVersionMsg(myconn.serverIP)
+        print >>sys.stderr, 'Sending "%s"' % message
+        sock.sendall(message)
 
-    while True:
-        if len(incompletedata) == 0:
-            data = sock.recv(SOCKET_BUFSIZE)
-        else:
-            data = sock.recv(SOCKET_BUFSIZE)# + incompletedata
+        # Look for the response
+        amount_received = 0
+        amount_expected = SOCKET_BUFSIZE #len(message)
 
-        amount_received += len(data)
-        logger.info('\n')
-        logger.info('Time = ' + time.strftime("%I:%M:%S") + '\tMessage received - %s', total_recv_count)
+        incompletedata = ''
 
-        try:
-            msgs, incompletedata = mesg.checkMsg(incompletedata + data)
-            if len(incompletedata) > 0:
-                logger.debug('Incomplete data length: %d - %s', len(incompletedata), hexlify(incompletedata))
-                if MAGIC_NUMBER not in incompletedata:
-                    logger.debug(' MAGIC NUMBER NOT FOUND IN INCOMPLETE DATA!')
-
-        except HeaderTooShortError:
-            logger.warning('Header too short!: %s', sys.exc_info())
-            continue
-
-        except PayloadTooShortError:
-            logger.warning('Payload too short!: %s', sys.exc_info())
-            continue
-
-        except:
-            logger.warning('Unexpected error: %s', sys.exc_info())
-            continue
-
-        #mesg.printMsgs(msgs)
-
-        for index in range(0, len(msgs)):
-            msg = msgs[index]
-
-            if msg['command'] == "version":
-                decodeVersion(msg['payload'])
-                message = mesg.getVerackMsg()
-                logger.debug('Version received, sending \'verack\'')
-                sock.sendall(message)
-            elif msg['command'] == "verack":
-                logger.debug('Verack received, sending \'getAddr\'')
-                sock.sendall(mesg.getAddrMsg())
-
-                #getblockmsg = mesg.getBlocks(4, 1, '000000000000000000083be09ac9bcdd3313f0324b7105473255c95c8a33d514', 0)
-                #sock.sendall(getblockmsg)
-            elif msg['command'] == "addr":
-                logger.debug('addr received - Addresses: ')
-                decodeAddrMessage(msg['payload'])
-            elif msg['command'] == "getaddr":
-                logger.debug('getaddr received')
-
-            elif msg['command'] == "getdata":
-                logger.debug(msg['command'] + ' received')
-            elif msg['command'] == "getheaders":
-                logger.debug('getheaders received')
-            elif msg['command'] == "inv":
-                logger.debug(msg['command'] + ' received')
-                decodeInvMessage(msg['payload'])
-            elif msg['command'] == "ping":
-                logger.info('Ping received, sending \'pong\'')
-                sock.sendall(mesg.getPongMsg(msg['payload']))
-            elif msg['command'] == "block":
-                logger.info('\n' + '-'*30 + ' Block Mined ' + '-'*30 + '\n')
-                logger.debug('Block: {}'.format(msg))
-                blockinfo, txdata = block.parseblock(msg)
-                tx.parsetx(txdata, blockinfo['txcount'])
+        while True:
+            if len(incompletedata) == 0:
+                data = sock.recv(SOCKET_BUFSIZE)
             else:
-                logger.debug('----------------- ' + msg['command'] + ' received')
+                data = sock.recv(SOCKET_BUFSIZE)# + incompletedata
 
-        recv_count = recv_count + 1
-        total_recv_count = total_recv_count + 1
+            amount_received += len(data)
+            logger.info('\n')
+            logger.info('Time = ' + time.strftime("%I:%M:%S") + '\tMessage received - %s', total_recv_count)
 
-        # Send 'ping' periodically
-        if recv_count > PING_FREQUENCY:
-            message = mesg.getPingMsg()
-            print >>sys.stderr, '\nsending "%s"' % message
-            sock.sendall(message)
-            recv_count = 0
+            try:
+                msgs, incompletedata = mesg.checkMsg(incompletedata + data)
+                if len(incompletedata) > 0:
+                    logger.debug('Incomplete data length: %d - %s', len(incompletedata), hexlify(incompletedata))
+                    if MAGIC_NUMBER not in incompletedata:
+                        logger.debug(' MAGIC NUMBER NOT FOUND IN INCOMPLETE DATA!')
 
-    #print >>sys.stderr, 'received "%s"' % data
+            except HeaderTooShortError:
+                logger.warning('Header too short!: %s', sys.exc_info())
+                continue
 
-#except:
-#    logger.warning('Unexpected error: %s', sys.exc_info())
+            except PayloadTooShortError:
+                logger.warning('Payload too short!: %s', sys.exc_info())
+                continue
 
-finally:
-    if myconn.sock is not None:
-        myconn.sock.close()
-        print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count
-    logger.info('-'*30 + ' Client stopping ' + '-'*30)
+            except:
+                logger.warning('Unexpected error: %s', sys.exc_info())
+                continue
+
+            #mesg.printMsgs(msgs)
+
+            for index in range(0, len(msgs)):
+                msg = msgs[index]
+
+                if msg['command'] == "version":
+                    decodeVersion(msg['payload'])
+                    message = mesg.getVerackMsg()
+                    logger.debug('Version received, sending \'verack\'')
+                    sock.sendall(message)
+                elif msg['command'] == "verack":
+                    logger.debug('Verack received, sending \'getAddr\'')
+                    sock.sendall(mesg.getAddrMsg())
+
+                    #getblockmsg = mesg.getBlocks(4, 1, '000000000000000000083be09ac9bcdd3313f0324b7105473255c95c8a33d514', 0)
+                    #sock.sendall(getblockmsg)
+                elif msg['command'] == "addr":
+                    logger.debug('addr received - Addresses: ')
+                    decodeAddrMessage(msg['payload'])
+                elif msg['command'] == "getaddr":
+                    logger.debug('getaddr received')
+
+                elif msg['command'] == "getdata":
+                    logger.debug(msg['command'] + ' received')
+                elif msg['command'] == "getheaders":
+                    logger.debug('getheaders received')
+                elif msg['command'] == "inv":
+                    logger.debug(msg['command'] + ' received')
+                    decodeInvMessage(msg['payload'])
+                elif msg['command'] == "ping":
+                    logger.info('Ping received, sending \'pong\'')
+                    sock.sendall(mesg.getPongMsg(msg['payload']))
+                elif msg['command'] == "block":
+                    logger.info('\n' + '-'*30 + ' Block Mined ' + '-'*30 + '\n')
+                    logger.debug('Block: {}'.format(msg))
+                    blockinfo, txdata = block.parseblock(msg)
+                    tx.parsetx(txdata, blockinfo['txcount'])
+                else:
+                    logger.debug('----------------- ' + msg['command'] + ' received')
+
+            recv_count = recv_count + 1
+            total_recv_count = total_recv_count + 1
+
+            # Send 'ping' periodically
+            if recv_count > PING_FREQUENCY:
+                message = mesg.getPingMsg()
+                print >>sys.stderr, '\nsending "%s"' % message
+                sock.sendall(message)
+                recv_count = 0
+
+        #print >>sys.stderr, 'received "%s"' % data
+
+    except:
+        logger.warning('Unexpected error: %s', sys.exc_info())
+
+    finally:
+        if myconn.sock is not None:
+            myconn.sock.close()
+            print >>sys.stderr, 'closing socket after "%d" recvs' %total_recv_count
+        logger.info('-'*30 + ' Client stopping ' + '-'*30)

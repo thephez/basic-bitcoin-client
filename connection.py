@@ -98,6 +98,7 @@ class Connection():
         print >>sys.stderr, '\nConnecting to %s port %s' % server_address
 
         try:
+            self.sock.settimeout(60)
             self.sock.connect(server_address)
             return self.sock
         finally:
