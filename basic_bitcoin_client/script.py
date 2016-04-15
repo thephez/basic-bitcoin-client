@@ -58,7 +58,7 @@ class Script():
 
     def parsetxoutputscript(self, txnum, tx_output, txinfo, txdetails):
         import opcodes
-        utility = util.Util()
+        utility = Util()
 
         script = txdetails['output_script_{}'.format(tx_output)]
         script_structure = []

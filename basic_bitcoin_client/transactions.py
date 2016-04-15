@@ -25,7 +25,7 @@ class Transactions():
         '''
 
         txinfo = []
-        utility = util.Util()
+        utility = Util()
         scripts = script.Script()
 
         '''
