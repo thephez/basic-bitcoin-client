@@ -151,11 +151,11 @@ from cStringIO import StringIO
 from binascii import hexlify, unhexlify
 import os
 
-from connection import *
-from messages import *
-from database import *
+from basic_bitcoin_client.connection import *
+from basic_bitcoin_client.messages import *
+from lib.database import *
 from blocks import *
-from transactions import *
+from basic_bitcoin_client.transactions import *
 
 LOGFILEDIR = '.'
 LOGFILENAME = os.path.join(LOGFILEDIR, 'log-basic-bitcoin-client.log')
@@ -370,7 +370,7 @@ logger.info('\n'*2 + '-'*30 + ' Client starting ' + '-'*30)
 
 myconn = Connection()
 block = Blocks()
-tx = transactions.Transactions()
+tx = Transactions()
 recv_count = 0
 total_recv_count = 0
 
