@@ -154,7 +154,7 @@ import os
 from basic_bitcoin_client.connection import *
 from basic_bitcoin_client.messages import *
 from lib.database import *
-from blocks import *
+from basic_bitcoin_client.blocks import *
 from basic_bitcoin_client.transactions import *
 
 LOGFILEDIR = '.'
