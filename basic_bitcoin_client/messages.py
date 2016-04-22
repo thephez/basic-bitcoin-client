@@ -54,23 +54,25 @@ class Messages():
 
             if data[0:4] == MAGIC_NUMBER:
                 recvmsg['magic_number'] = dataIO.read(4)
-                #logger.debug('Magic Number received - %s', hexlify(recvmsg['magic_number']))
-
                 recvmsg['command'] = dataIO.read(12).strip("\x00") # Remove Nulls at end of string
                 logger.info('  Command: %s', recvmsg['command'])
 
                 recvmsg['length'] = struct.unpack("<I", dataIO.read(4))[0]
 
                 if recvmsg['length'] > (remainingdatalength - HEADER_LEN):
-                    logger.warning('Incomplete Payload - need to wait for more data: %d remaining', (recvmsg['length'] + HEADER_LEN)- remainingdatalength)
-                    logger.warning('data_len: %d, dataIO.tell(): %d, recvmsg[length]: %d' % (data_len, dataIO.tell(), recvmsg['length']))
-                    #logger.debug('Incomplete Payload.  Received data: {}'.format(data))
+                    # This indicates the amount of data received so far is less than the total length indicated by
+                    # the message (i.e. there is more data coming - the message is incomplete) so we will return
+
+                    #logger.warning('Incomplete Payload - need to wait for more data: %d remaining', (recvmsg['length'] + HEADER_LEN)- remainingdatalength)
+                    logger.warning('Incomplete Payload - Received: %d of %d (%d remaining for %s)' % (data_len, recvmsg['length'], (recvmsg['length'] - remainingdatalength), recvmsg['command']))
                     # The data[x:x] items need to be modified in case the short message is in the middle of a list of messages (may not start at [0:4]
                     return(all_msgs, data[0:4] + data[4:16] + data[16:20] + dataIO.read(data_len - dataIO.tell()))
 
-                    #raise PayloadTooShortError("Received {} of {} bytes".format(
-                    #    remainingdatalength - HEADER_LEN, recvmsg['length']))
                 else:
+                    # Full message has now been received, so the checksum is verified and an exception thrown
+                    # if it doesn't match.  There could be multiple messages.  This will read one message each iteration
+                    if recvmsg['length'] < data_len - 24: logger.debug('Payload longer than message length. Multiple messages likely - Received: {} of {}. ({}) '.format(data_len, recvmsg['length'], recvmsg['command']))
+
                     recvmsg['checksum'] = dataIO.read(4)
                     logger.debug('  Checksum: %s', str(hexlify(recvmsg['checksum'])))
 
@@ -80,9 +82,13 @@ class Messages():
                     checksum = hashlib.sha256(hashlib.sha256(recvmsg['payload']).digest()).digest()[0:4]
 
                     if checksum != recvmsg['checksum']:
-                        logger.error('Checksum Error. Based on hash of received payload: {}'.format(recvmsg['payload']))
+                        if recvmsg['length'] < data_len - 24: logger.warning('Payload longer than message length. Multiple messages likely - Received: {} of {}. ({}) '.format(data_len, recvmsg['length'], recvmsg['command']))
+                        logger.error('Checksum Error. Based on hash of received payload: {}'.format(hexlify(recvmsg['payload'])))
+                        logger.error('Checksum Error. Length: {}, Command: {}'.format(recvmsg['length'], recvmsg['command']))
                         raise PayloadChecksumError("got {} instead of {} ".format(
                             hexlify(checksum), hexlify(recvmsg['checksum'])))
+                #else:
+                #    logger.error('Received too much data ({} of {}).'.format(data_len, recvmsg['length']))
 
                 #https://docs.python.org/2/library/stdtypes.html
                 all_msgs.append(recvmsg.copy())

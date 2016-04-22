@@ -81,7 +81,7 @@ class Script():
                         script = script[2::]
 
                     if opcodename == 'OP_INVALIDOPCODE':
-                        logger.warning('{} ({}) opcode found.'.format(opcodename, opcode))
+                        logger.warning('{}.\t{} ({}) opcode found.'.format(txnum, opcodename, opcode))
 
                     if scriptdata <> '':
                         script_structure.append('{}'.format(scriptdata))

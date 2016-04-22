@@ -419,6 +419,10 @@ def main():
                     logger.warning('Payload too short!: %s', sys.exc_info())
                     continue
 
+                except PayloadChecksumError:
+                    logger.warning('Payload checksum error!: %s', sys.exc_info())
+                    break
+
                 except:
                     logger.warning('Unexpected error: %s', sys.exc_info())
                     continue
@@ -475,8 +479,8 @@ def main():
 
             #print >>sys.stderr, 'received "%s"' % data
 
-        #except:
-        #    logger.warning('Unexpected error: %s', sys.exc_info())
+        except:
+            logger.warning('Unexpected error: %s', sys.exc_info())
 
         finally:
             if myconn.sock is not None:
