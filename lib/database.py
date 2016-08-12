@@ -32,9 +32,23 @@ class MyDB(object):
     def insert(self, table, fields, values):
         #insertstatement = "INSERT INTO {}({}) VALUES('{}')".format(table, fields, values)
         insertstatement = "INSERT INTO {}({}) VALUES({})".format(table, fields, values)
-        logger.debug(insertstatement)
-        self._db_cur.execute(insertstatement)
-        self._db_connection.commit()
+        #logger.debug(insertstatement)
+        try:
+            self._db_cur.execute(insertstatement)
+            self._db_connection.commit()
+        except:
+            logger.debug("Insert failed: {}".format(insertstatement))
+            pass
+
+    def update(self, updatestatement):
+
+        logger.debug(updatestatement)
+        try:
+            self._db_cur.execute(updatestatement)
+            self._db_connection.commit()
+        except:
+            logger.debug("Update failed: {}".format(updatestatement))
+            pass
 
     def inittable(self, tablename):
         query = 'SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'{}\''.format(tablename)

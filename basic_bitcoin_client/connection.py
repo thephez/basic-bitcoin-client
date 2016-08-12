@@ -23,6 +23,8 @@ class Connection():
         self.sock = None
 
     def get_peer_IP(self):
+        # Loop through seedlist  and try each peer returned for a seedlist until
+        # a successful connection made or all peers on that seed tried
         socket_timeout = 3
         peerinfo = None
 
@@ -103,6 +105,31 @@ class Connection():
             return self.sock
         finally:
             print >>sys.stderr, 'Open Connection'
+
+    def openbyip(self, ipAddr):
+
+        # Create a TCP/IP socket
+        tempsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Connect the socket to the port where the server is listening
+        temp_address = (ipAddr, DEFAULT_PORT) #('50.177.196.160', DEFAULT_PORT)
+        #print >>sys.stderr, '\nConnecting to %s port %s' % temp_address
+
+        try:
+            tempsock.settimeout(1)
+            #logger.info('Checking node @ IP: %s', ipAddr)
+            tempsock.connect(temp_address)
+            tempsock.close()
+
+            return True
+        except:
+            logger.warning('Unexpected error: Server IP: %s %s', ipAddr, sys.exc_info())
+            return False
+        finally:
+            #print >>sys.stderr, 'Open Connection'
+            pass
+
+    pass
 
     def close(self):
 
